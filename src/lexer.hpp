@@ -7,7 +7,9 @@
 #include <string>
 
 enum class TokenType {
-    CLAUSE,
+    SELECT_CLAUSE,
+    MODIFYING_CLAUSE,
+
     IDENT,
     STRING,
     NUMBER,
@@ -33,7 +35,7 @@ class Lexer {
     private:
 
         std::vector<Token> m_tokens;
-        std::set<std::string> m_reserved{"SELECT"};
+        std::set<std::string> m_modifying_clauses{"MOVE", "DELETE", "COPY"};
 };
 
 #endif

@@ -1,1 +1,1 @@
-SELECT (SELECT "CMakeFiles", (SELECT (SELECT (SELECT "src"))));
+SELECT "a", (SELECT "b") DELETE;

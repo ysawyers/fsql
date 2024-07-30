@@ -14,22 +14,16 @@ class Parser {
 
     private:
 
-        //! STMT = clause ";"
+        //! STMT = select_clause, [ modifying_clause ] ";"
         bool statement();
 
-        //! CLAUSE = select_clause | action_clause
-        bool clause();
-
-        //! SELECT_CLAUSE = virtual_directory, { virtual_directory }, { modifying_clause }
+        //! SELECT_CLAUSE = "SELECT" virtual_directory, { virtual_directory }
         bool select_clause();
 
-        //! MODIFYING_CLAUSE = ...
+        //! MODIFYING_CLAUSE = COPY string_literal | MOVE string_literal | DELETE
         bool modifying_clause();
 
-        //! ACTION_CLAUSE = ...
-        bool action_clause();
-
-        //! VIRTUAL_DIRECTORY = string | "(" { select_clause } ")"
+        //! VIRTUAL_DIRECTORY = string_literal | "(" select_clause ")"
         bool virtual_directory(bool& is_disk_element);
 
         const Token& next_token();

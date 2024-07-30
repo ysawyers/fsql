@@ -5,8 +5,8 @@
 
 std::ostream& operator<<(std::ostream& stream, const Token& token) {
     switch (token.m_type) {
-    case TokenType::CLAUSE: 
-        stream << "CLAUSE";
+    case TokenType::SELECT_CLAUSE: 
+        stream << "SELECT_CLAUSE";
         break;
     case TokenType::STRING:
         stream << "STRING : " << token.m_lexeme;
@@ -31,6 +31,9 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
         break;
     case TokenType::COMMA:
         stream << "COMMA";
+        break;
+    case TokenType::MODIFYING_CLAUSE:
+        stream << "MODIFYING_CLAUSE";
         break;
     }
     return stream;
@@ -72,15 +75,17 @@ const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
             if (isdigit(ch)) {
                 do {
                     lexeme += ch;
-                } while ((is >> ch) && isdigit(ch));
+                } while (isdigit(is.peek()) && (is >> ch));
                 tokenType = TokenType::NUMBER;
             } else if (isalpha(ch)) {
                 do {
                     lexeme += ch;
-                } while ((is >> ch) && isalnum(ch));
+                } while (isalnum(is.peek()) && (is >> ch));
 
-                if (m_reserved.contains(lexeme)) {
-                    tokenType = TokenType::CLAUSE;
+                if (lexeme == "SELECT") {
+                    tokenType = TokenType::SELECT_CLAUSE;
+                } else if (m_modifying_clauses.contains(lexeme)) {
+                    tokenType = TokenType::MODIFYING_CLAUSE;
                 } else {
                     tokenType = TokenType::IDENT;
                 }
