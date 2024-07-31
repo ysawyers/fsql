@@ -24,12 +24,12 @@ SELECT "dir1", "dir2", ...;
 
 Modifiers can also be added after `SELECT` to specify the kind of elements you want as a part of that disk cluster.
 
-### Only include files
+### Only grab files
 ```
 SELECT FILES "dir1", "dir2";
 ```
 
-### Only include directories
+### Only grab directories
 ```
 SELECT DIRECTORIES "dir1", "dir";
 ```
@@ -40,6 +40,20 @@ Nested queries are also supported but they cannot include modifying clauses (rea
 
 ```
 SELECT "dir1", (SELECT FILES "dir2");
+```
+
+## FILTERING clauses
+
+Filtering clauses use regex patterns to grab specific files from the cluster.
+
+### INCLUDE example
+```
+SELECT FILES "project" INCLUDE ".*\.cpp$";
+```
+
+### EXCLUDE example
+```
+SELECT "project" EXCLUDE ".*\.cpp$";
 ```
 
 ## MODIFYING clauses
