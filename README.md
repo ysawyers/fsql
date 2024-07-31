@@ -36,7 +36,7 @@ SELECT DIRECTORIES "dir1", "dir";
 
 ## Nested-query example
 
-Nested queries are also supported but they cannot including modifying clauses (read further ahead).
+Nested queries are also supported but they cannot include modifying clauses (read further ahead).
 
 ```
 SELECT "dir1", (SELECT FILES "dir2");
