@@ -17,11 +17,14 @@ class Parser {
         //! STMT = select_clause, [ modifying_clause ] ";"
         bool statement();
 
-        //! SELECT_CLAUSE = "SELECT" virtual_directory, { virtual_directory }
+        //! SELECT_CLAUSE = "SELECT" virtual_directory, { virtual_directory }, { filtering_clause }
         bool select_clause();
 
         //! MODIFYING_CLAUSE = COPY string_literal | MOVE string_literal | DELETE
         bool modifying_clause();
+
+        //! FILTERING_CLAUSE = ???
+        bool filtering_clause();
 
         //! VIRTUAL_DIRECTORY = string_literal | "(" select_clause ")"
         bool virtual_directory(bool& is_disk_element);

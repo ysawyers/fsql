@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+#include <regex>
+
 const Token& Parser::next_token() {
     return m_tokens[m_curr_token_idx++];
 }
@@ -14,15 +16,9 @@ bool Parser::has_next_token() {
 };
 
 bool Parser::virtual_directory(bool& is_disk_element) {
-    if (!has_next_token()) {
-        // TODO: better error message here
-        fprintf(stderr, "error: ...\n");
-        return false;
-    }
-
     const auto& tok = next_token();
     if (tok.m_type == TokenType::STRING) {
-        m_program.emplace_back(Instr{ .m_type=InstrType::PUSH_STRING, .m_operand=&tok.m_lexeme });
+        m_program.emplace_back(Instr{InstrType::PUSH_STRING, &tok.m_lexeme});
         is_disk_element = false;
         return true;
     } else if (tok.m_type == TokenType::LPAREN) {
@@ -40,39 +36,84 @@ bool Parser::virtual_directory(bool& is_disk_element) {
 }
 
 bool Parser::modifying_clause() {
-    // only caller is select which guarantees that there is at least one
-    // more valid token so has_next_token() check is not required here
     const auto& tok = next_token();
 
     if (tok.m_lexeme == "MOVE") {
-        const auto& tok = next_token();
-        if (!has_next_token() || (tok.m_type != TokenType::STRING)) {
-            fprintf(stderr, "error: Move clause expects file path\n");
+        if (!has_next_token()) {
+            fprintf(stderr, "error: MOVE clause expects preceeding string literal\n");
             return false;
         }
-        m_program.emplace_back(Instr{ .m_type=InstrType::MOVE_DE_CONTENTS, .m_operand=&tok.m_lexeme });
-        return true;
-    } else if (tok.m_lexeme == "DELETE") {
-        m_program.emplace_back(Instr{ .m_type=InstrType::DELETE_DE_CONTENTS });
-        return true;
-    } else if (tok.m_lexeme == "COPY") {
+
         const auto& tok = next_token();
-        m_program.emplace_back(Instr{ .m_type=InstrType::COPY_DE_CONTENTS, .m_operand=&tok.m_lexeme });
-        return true;
+        if (tok.m_type != TokenType::STRING) {
+            fprintf(stderr, "error: Unexpected token, string literal expected after MOVE clause\n");
+            return false;
+        }
+        m_program.emplace_back(Instr{InstrType::MOVE_DE_CONTENTS, &tok.m_lexeme});
+    } else if (tok.m_lexeme == "DELETE") {
+        m_program.emplace_back(Instr{InstrType::DELETE_DE_CONTENTS});
+    } else if (tok.m_lexeme == "COPY") {
+        if (!has_next_token()) {
+            fprintf(stderr, "error: COPY clause expects preceeding string literal\n");
+            return false;
+        }
+
+        const auto& tok = next_token();
+        if (tok.m_type != TokenType::STRING) {
+            fprintf(stderr, "error: Unexpected token, string literal expected after COPY clause\n");
+            return false;
+        }
+        m_program.emplace_back(Instr{InstrType::COPY_DE_CONTENTS, &tok.m_lexeme});
     }
 
-    std::unreachable();
+    return true;
+}
+
+bool Parser::filtering_clause() {
+    const auto& tok = next_token();
+
+    if ((tok.m_lexeme == "INCLUDE") || (tok.m_lexeme == "EXCLUDE")) {
+        std::uint64_t is_include_clause = tok.m_lexeme == "INCLUDE";
+
+        if (!has_next_token()) {
+            std::cerr << "error: " << tok.m_lexeme << " clause expects preceeding regex string literal\n";
+            return false;
+        }
+
+        const auto& tok = next_token();
+        if (tok.m_type != TokenType::STRING) {
+            std::cerr << "error: Unexpected token...\n"; 
+            return false;
+        }
+
+        try {
+            // verifies validity of regex pattern before emitting instructions
+            std::regex pattern(tok.m_lexeme);
+            m_program.emplace_back(Instr{InstrType::PUSH_STRING, &tok.m_lexeme});
+            m_program.emplace_back(Instr{InstrType::CLUSTER_REGEX_MATCH_FILTER, reinterpret_cast<const void*>(is_include_clause)});
+        } catch (const std::regex_error&) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool Parser::select_clause() {
     std::uint64_t string_elements = 0, disk_elements = 0;
 
     if (!has_next_token() || (next_token().m_type != TokenType::SELECT_CLAUSE)) {
-        fprintf(stderr, "error: Expected select clause\n");
+        fprintf(stderr, "error: Expected SELECT clause\n");
         return false;
     }
 
     do {
+        if (!has_next_token()) {
+            // TODO: come up with a better error message
+            fprintf(stderr, "error: ????\n");
+            return false;
+        }
+
         bool is_disk_element = false;
         if (!virtual_directory(is_disk_element)) return false;
 
@@ -84,10 +125,20 @@ bool Parser::select_clause() {
     } while (has_next_token() && (next_token().m_type == TokenType::COMMA));
     push_back_token();
 
-    m_program.emplace_back(Instr{ .m_type=InstrType::COLLAPSE_TO_CLUSTER, .m_operand=reinterpret_cast<void*>(string_elements) });
+    m_program.emplace_back(Instr{InstrType::COLLAPSE_TO_CLUSTER, reinterpret_cast<void*>(string_elements)});
     if (disk_elements)
-        m_program.emplace_back(Instr{ .m_type=InstrType::COLLAPSE_CLUSTERS, .m_operand=reinterpret_cast<void*>(disk_elements) });
+        m_program.emplace_back(Instr{InstrType::COLLAPSE_CLUSTERS, reinterpret_cast<void*>(disk_elements)});
 
+    while (has_next_token()) {
+        const auto& tok = next_token();
+        push_back_token();
+
+        if (tok.m_type == TokenType::FILTERING_CLAUSE) {
+            if (!filtering_clause()) return false;
+        } else {
+            break;
+        }
+    }
     return true;
 }
 
@@ -111,8 +162,7 @@ bool Parser::statement() {
         return false;
     }
 
-    if (!has_next_token()) return false;
-    if (next_token().m_type != TokenType::SEMICOL) {
+    if (!has_next_token() || (next_token().m_type != TokenType::SEMICOL)) {
         fprintf(stderr, "error: Expected semi-colon\n");
         return false;
     }

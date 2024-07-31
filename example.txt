@@ -1,1 +1,1 @@
-SELECT "a", (SELECT "b") DELETE;
+SELECT "src", "CMakeFiles" INCLUDE ".*\.cpp$" COPY "a";

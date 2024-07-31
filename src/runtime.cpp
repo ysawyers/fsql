@@ -1,5 +1,7 @@
 #include "runtime.hpp"
 
+#include <regex>
+
 #include "common.hpp"
 
 namespace fs = std::filesystem;
@@ -23,6 +25,9 @@ std::ostream& operator<<(std::ostream& stream, const Instr& instr) {
         break;
     case InstrType::DELETE_DE_CONTENTS:
         stream << "DELETE_DE_CONTENTS";
+        break;
+    case InstrType::CLUSTER_REGEX_MATCH_FILTER:
+        stream << "CLUSTER_REGEX_MATCH_FILTER";
         break;
     }
     return stream;
@@ -68,7 +73,7 @@ bool Runtime::copy_disk_cluster(const void* path) {
 
         const auto renamed_path = dest_dir_path / el.filename();
         if (conflicting_pathname(el, renamed_path)) {
-            std::cout << "conflicting\n"; // TODO: make better message
+            std::cout << "warning: Cannot COPY " << el << " to " << dest_dir_path << " due to filename conflict\n";
             continue;
         }
 
@@ -85,7 +90,7 @@ bool Runtime::copy_disk_cluster(const void* path) {
             }
         } catch (const fs::filesystem_error& ex) {
             std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to copy " << el << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: Failed to COPY " << el << " to " <<  dest_dir_path << "\n";
         } catch (...) {
             std::cout << "warning: Unexpected failure copying " << el << " to " <<  dest_dir_path << "\n";
         }
@@ -100,10 +105,10 @@ bool Runtime::move_disk_cluster(const void* path) {
     auto& disk_cluster = m_disk_clusters.back();
 
     if (!fs::exists(dest_dir_path))
-        if (!create_missing_directory(dest_dir_path, disk_cluster, "COPY")) return false;
+        if (!create_missing_directory(dest_dir_path, disk_cluster, "MOVE")) return false;
 
     if (!fs::is_directory(dest_dir_path)) {
-        std::cout << "runtime error: Cannot COPY files to a non-directory " << dest_dir_path << "\n";
+        std::cout << "runtime error: Cannot MOVE files to a non-directory " << dest_dir_path << "\n";
         return false;
     }
 
@@ -112,7 +117,7 @@ bool Runtime::move_disk_cluster(const void* path) {
 
         const auto renamed_path = dest_dir_path / el.filename();
         if (conflicting_pathname(el, renamed_path)) {
-            std::cout << "conflicting\n"; // TODO: make better message
+            std::cout << "warning: Cannot MOVE " << el << " to " << dest_dir_path << " due to filename conflict\n";
             continue;
         }
 
@@ -121,7 +126,7 @@ bool Runtime::move_disk_cluster(const void* path) {
             el = renamed_path;
         } catch (const fs::filesystem_error& ex) {
             std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to move " << el << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: Failed to MOVE " << el << " to " <<  dest_dir_path << "\n";
         } catch (...) {
             std::cout << "warning: Unexpected failure moving " << el << " to " <<  dest_dir_path << "\n";
         }
@@ -135,7 +140,6 @@ bool Runtime::delete_disk_cluster() {
 
     while (disk_cluster.m_elements.size()) {
         const auto& el = disk_cluster.m_elements.back();
-
         try {
             fs::remove_all(el);
         } catch (const fs::filesystem_error& ex) {
@@ -146,6 +150,23 @@ bool Runtime::delete_disk_cluster() {
         }
         disk_cluster.m_elements.pop_back();
     }
+
+    return true;
+}
+
+bool Runtime::cluster_regex_match_filter(const void* include_or_exclude) {
+    const bool include_match = reinterpret_cast<std::uint64_t>(include_or_exclude);
+    auto& disk_cluster = m_disk_clusters.back();
+
+    std::regex pattern(*reinterpret_cast<const std::string*>(m_operands.back()));
+    m_operands.pop_back();
+
+    std::vector<fs::path> matched_elements;
+    for (const auto& el : disk_cluster.m_elements) {
+        if (include_match == std::regex_match(el.filename().c_str(), pattern))
+            matched_elements.emplace_back(el);
+    }
+    disk_cluster.m_elements = matched_elements;
 
     return true;
 }
@@ -212,6 +233,10 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
             auto& second = m_disk_clusters[m_disk_clusters.size() - 1].m_elements;
             std::move(second.begin(), second.end(), std::back_inserter(first));
             m_disk_clusters.pop_back();
+            break;
+        }
+        case InstrType::CLUSTER_REGEX_MATCH_FILTER: {
+            fatal_error = !cluster_regex_match_filter(instr.m_operand);
             break;
         }
         case InstrType::COPY_DE_CONTENTS: {

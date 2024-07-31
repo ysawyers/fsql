@@ -6,9 +6,14 @@
 #include <filesystem>
 
 enum class InstrType {
+    // general instructions
     PUSH_STRING,
     COLLAPSE_TO_CLUSTER,
     COLLAPSE_CLUSTERS,
+
+    CLUSTER_REGEX_MATCH_FILTER,
+
+    // filesystem operations
     COPY_DE_CONTENTS,
     MOVE_DE_CONTENTS,
     DELETE_DE_CONTENTS,
@@ -41,6 +46,16 @@ class Runtime {
         void execute_program(const std::vector<Instr>& program);
 
     private:
+
+        /*!
+            \brief TODO
+
+            \param[in] include_or_exclude if set, only keep filenames in the disk cluster that match the regex
+                                          otherwise exclude the filenames that match the regex
+
+            \return true if no critical errors
+        */
+        bool cluster_regex_match_filter(const void* include_or_exclude);
 
         /*!
             \brief moves each mapped file from the disk cluster and renames 

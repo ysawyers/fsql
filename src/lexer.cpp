@@ -35,6 +35,9 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
     case TokenType::MODIFYING_CLAUSE:
         stream << "MODIFYING_CLAUSE";
         break;
+    case TokenType::FILTERING_CLAUSE:
+        stream << "FILTERING_CLAUSE";
+        break;
     }
     return stream;
 }
@@ -45,29 +48,29 @@ const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
     char ch{};
     while (is >> ch) {
         std::string lexeme;
-        TokenType tokenType;
+        TokenType token_type;
 
         switch (ch) {
         case '\"':
             while ((is >> ch) && ch != '\"')
                 lexeme += ch;
-            tokenType = TokenType::STRING;
+            token_type = TokenType::STRING;
             break;
         case ';':
             lexeme += ";";
-            tokenType = TokenType::SEMICOL;
+            token_type = TokenType::SEMICOL;
             break;
         case '(':
             lexeme += "(";
-            tokenType = TokenType::LPAREN;
+            token_type = TokenType::LPAREN;
             break;
         case ')':
             lexeme += ")";
-            tokenType = TokenType::RPAREN;
+            token_type = TokenType::RPAREN;
             break;
         case ',':
             lexeme += ",";
-            tokenType = TokenType::COMMA;
+            token_type = TokenType::COMMA;
             break;
         case ' ':
             continue;
@@ -76,18 +79,20 @@ const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
                 do {
                     lexeme += ch;
                 } while (isdigit(is.peek()) && (is >> ch));
-                tokenType = TokenType::NUMBER;
+                token_type = TokenType::NUMBER;
             } else if (isalpha(ch)) {
                 do {
                     lexeme += ch;
                 } while (isalnum(is.peek()) && (is >> ch));
 
                 if (lexeme == "SELECT") {
-                    tokenType = TokenType::SELECT_CLAUSE;
+                    token_type = TokenType::SELECT_CLAUSE;
                 } else if (m_modifying_clauses.contains(lexeme)) {
-                    tokenType = TokenType::MODIFYING_CLAUSE;
+                    token_type = TokenType::MODIFYING_CLAUSE;
+                } else if (m_filtering_clauses.contains(lexeme)) {
+                    token_type = TokenType::FILTERING_CLAUSE;
                 } else {
-                    tokenType = TokenType::IDENT;
+                    token_type = TokenType::IDENT;
                 }
             } else {
                 // unrecognized characters are just ignored
@@ -96,7 +101,7 @@ const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
         }
         }
 
-        m_tokens.emplace_back(Token{lexeme, tokenType});
+        m_tokens.emplace_back(Token{lexeme, token_type});
     }
 
     return m_tokens;
