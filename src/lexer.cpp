@@ -38,6 +38,9 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
     case TokenType::FILTERING_CLAUSE:
         stream << "FILTERING_CLAUSE";
         break;
+    case TokenType::SELECT_MODIFIER:
+        stream << "SELECT_MODIFIER";
+        break;
     }
     return stream;
 }
@@ -91,6 +94,8 @@ const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
                     token_type = TokenType::MODIFYING_CLAUSE;
                 } else if (m_filtering_clauses.contains(lexeme)) {
                     token_type = TokenType::FILTERING_CLAUSE;
+                } else if (m_select_modifiers.contains(lexeme)) {
+                    token_type = TokenType::SELECT_MODIFIER;
                 } else {
                     token_type = TokenType::IDENT;
                 }

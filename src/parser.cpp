@@ -100,11 +100,25 @@ bool Parser::filtering_clause() {
 }
 
 bool Parser::select_clause() {
-    std::uint64_t string_elements = 0, disk_elements = 0;
+    std::size_t string_elements = 0, disk_elements = 0;
 
     if (!has_next_token() || (next_token().m_type != TokenType::SELECT_CLAUSE)) {
         fprintf(stderr, "error: Expected SELECT clause\n");
         return false;
+    }
+
+    int modifier_type = -1;
+    if (has_next_token()) {
+        const auto& tok = next_token();
+        if (tok.m_type == TokenType::SELECT_MODIFIER) {
+            if (tok.m_lexeme == "FILES") {
+                modifier_type = 0;
+            } else if (tok.m_lexeme == "DIRECTORIES") {
+                modifier_type = 1;
+            }
+        } else {
+            push_back_token();
+        }
     }
 
     do {
@@ -125,9 +139,15 @@ bool Parser::select_clause() {
     } while (has_next_token() && (next_token().m_type == TokenType::COMMA));
     push_back_token();
 
+    if (modifier_type != -1)
+        m_program.emplace_back(Instr{InstrType::SET_COLLAPSE_MODIFIER, reinterpret_cast<void*>(modifier_type)});
+
     m_program.emplace_back(Instr{InstrType::COLLAPSE_TO_CLUSTER, reinterpret_cast<void*>(string_elements)});
     if (disk_elements)
         m_program.emplace_back(Instr{InstrType::COLLAPSE_CLUSTERS, reinterpret_cast<void*>(disk_elements)});
+
+    if (modifier_type != -1)
+        m_program.emplace_back(Instr{InstrType::SET_COLLAPSE_MODIFIER, reinterpret_cast<void*>(-1)});
 
     while (has_next_token()) {
         const auto& tok = next_token();

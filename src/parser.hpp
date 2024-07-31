@@ -17,7 +17,7 @@ class Parser {
         //! STMT = select_clause, [ modifying_clause ] ";"
         bool statement();
 
-        //! SELECT_CLAUSE = "SELECT" virtual_directory, { virtual_directory }, { filtering_clause }
+        //! SELECT_CLAUSE = "SELECT" [ "FILES" | "DIRECTORIES" ], virtual_directory, { virtual_directory }, { filtering_clause }
         bool select_clause();
 
         //! MODIFYING_CLAUSE = COPY string_literal | MOVE string_literal | DELETE

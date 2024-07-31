@@ -11,6 +11,7 @@ enum class InstrType {
     PUSH_STRING,
     COLLAPSE_TO_CLUSTER,
     COLLAPSE_CLUSTERS,
+    SET_COLLAPSE_MODIFIER,
 
     CLUSTER_REGEX_MATCH_FILTER,
 
@@ -25,17 +26,8 @@ struct Instr {
     const void* m_operand;
 };
 
-class DiskCluster {
-    public:
-
-        /*!
-            \param[in] path dereferenced as std::string
-        */
-        void add_element(const void* path);
-
-    public:
-
-        std::set<std::filesystem::path> m_elements;
+struct DiskCluster {
+    std::set<std::filesystem::path> m_elements;
 };
 
 std::ostream& operator<<(std::ostream& stream, const Instr& instr);
@@ -49,7 +41,23 @@ class Runtime {
     private:
 
         /*!
-            \brief TODO
+            \brief Creates a new disk cluster on the stack
+
+            \param[in] n number of strings (filepaths) on the operand stack that should 
+                         be collapsed into a disk cluster
+        */
+        void collapse_to_cluster(const std::size_t n);
+
+        /*!
+            \brief Compresses disk clusters into a single disk cluster on the stack
+
+            \param[in] n number of disk clusters on the stack that should be
+                         collapsed (condensed) into a single one
+        */
+        void collapse_clusters(const std::size_t n);
+
+        /*!
+            \brief Filters out elements from a cluster based on a regex pattern
 
             \param[in] include_or_exclude if set, only keep filenames in the disk cluster that match the regex
                                           otherwise exclude the filenames that match the regex
@@ -112,6 +120,17 @@ class Runtime {
             const std::filesystem::path& original_path, 
             const std::filesystem::path& renamed_path
         );
+
+        /*!
+            \brief Determines if an element should be added to a cluster based on
+                   the modifier set at the moment during runtime
+
+            \return true if the element should be added
+        */
+        bool should_include_element(const std::filesystem::path& element);
+
+        //! 0 = files only, 1 = directories only, -1 = all
+        int m_collapse_modifier = -1;
 
         std::vector<const void*> m_operands;
         std::vector<DiskCluster> m_disk_clusters;

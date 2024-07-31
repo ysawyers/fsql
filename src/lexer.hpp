@@ -8,6 +8,7 @@
 
 enum class TokenType {
     SELECT_CLAUSE,
+    SELECT_MODIFIER,
     MODIFYING_CLAUSE,
     FILTERING_CLAUSE,
 
@@ -38,6 +39,7 @@ class Lexer {
         std::vector<Token> m_tokens;
         std::set<std::string> m_filtering_clauses{"INCLUDE", "EXCLUDE"};
         std::set<std::string> m_modifying_clauses{"MOVE", "COPY", "DELETE"};
+        std::set<std::string> m_select_modifiers{"FILES", "DIRECTORIES"};
 };
 
 #endif
