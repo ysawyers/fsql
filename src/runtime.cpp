@@ -46,9 +46,9 @@ void DiskCluster::add_element(const void* path) {
     if (fs::exists(absolute_path)) {
         if (fs::is_directory(absolute_path)) {
             for (auto const& file : fs::directory_iterator{absolute_path})
-                m_elements.emplace_back(file);
+                m_elements.insert(file);
         } else {
-            m_elements.emplace_back(std::move(absolute_path));
+            m_elements.insert(std::move(absolute_path));
         }
     } else {
         std::cout << "warning: " << absolute_path << " does not exist, ignored\n";
@@ -123,7 +123,8 @@ bool Runtime::move_disk_cluster(const void* path) {
 
         try {
             fs::rename(el, renamed_path);
-            el = renamed_path;
+            disk_cluster.m_elements.erase(el);
+            disk_cluster.m_elements.insert(renamed_path);
         } catch (const fs::filesystem_error& ex) {
             std::cout << ex.what() << "\n";
             std::cout << "warning: Failed to MOVE " << el << " to " <<  dest_dir_path << "\n";
@@ -138,8 +139,8 @@ bool Runtime::move_disk_cluster(const void* path) {
 bool Runtime::delete_disk_cluster() {
     auto& disk_cluster = m_disk_clusters.back();
 
-    while (disk_cluster.m_elements.size()) {
-        const auto& el = disk_cluster.m_elements.back();
+    for (auto it = disk_cluster.m_elements.begin(); it != disk_cluster.m_elements.end(); ++it) {
+        const auto& el = *it;
         try {
             fs::remove_all(el);
         } catch (const fs::filesystem_error& ex) {
@@ -148,8 +149,8 @@ bool Runtime::delete_disk_cluster() {
         } catch (...) {
             std::cout << "warning: Unexpected failure deleting " << el << "\n";
         }
-        disk_cluster.m_elements.pop_back();
     }
+    disk_cluster.m_elements.clear();
 
     return true;
 }
@@ -161,10 +162,10 @@ bool Runtime::cluster_regex_match_filter(const void* include_or_exclude) {
     std::regex pattern(*reinterpret_cast<const std::string*>(m_operands.back()));
     m_operands.pop_back();
 
-    std::vector<fs::path> matched_elements;
+    std::set<fs::path> matched_elements;
     for (const auto& el : disk_cluster.m_elements) {
         if (include_match == std::regex_match(el.filename().c_str(), pattern))
-            matched_elements.emplace_back(el);
+            matched_elements.insert(el);
     }
     disk_cluster.m_elements = matched_elements;
 
@@ -231,7 +232,7 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
         case InstrType::COLLAPSE_CLUSTERS: {
             auto& first = m_disk_clusters[m_disk_clusters.size() - 2].m_elements;
             auto& second = m_disk_clusters[m_disk_clusters.size() - 1].m_elements;
-            std::move(second.begin(), second.end(), std::back_inserter(first));
+            for (const auto& el : second) first.insert(el);
             m_disk_clusters.pop_back();
             break;
         }
@@ -253,4 +254,6 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
         }
         }
     }
+
+    // std::cout << m_disk_clusters[0] << std::endl;
 }

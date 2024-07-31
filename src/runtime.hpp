@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <filesystem>
+#include <set>
 
 enum class InstrType {
     // general instructions
@@ -34,7 +35,7 @@ class DiskCluster {
 
     public:
 
-        std::vector<std::filesystem::path> m_elements;
+        std::set<std::filesystem::path> m_elements;
 };
 
 std::ostream& operator<<(std::ostream& stream, const Instr& instr);
