@@ -1,1 +1,1 @@
-SELECT "src", "CMakeFiles" INCLUDE ".*\.cpp$" COPY "a";
+SELECT (SELECT "src" INCLUDE ".*\.cpp$"), "CMakeFiles" COPY "a";
