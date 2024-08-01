@@ -8,11 +8,9 @@
 
 enum class InstrType {
     // general instructions
-    PUSH_STRING,
+    PUSH,
     COLLAPSE_TO_CLUSTER,
     COLLAPSE_CLUSTERS,
-    SET_COLLAPSE_MODIFIER,
-
     CLUSTER_REGEX_MATCH_FILTER,
 
     // filesystem operations
@@ -26,8 +24,41 @@ struct Instr {
     const void* m_operand;
 };
 
-struct DiskCluster {
-    std::set<std::filesystem::path> m_elements;
+enum class SelectModifier {
+    ANY = 0,
+    FILES,
+    DIRECTORIES,
+    RECURSIVE
+};
+
+class DiskCluster {
+    public:
+        
+        /*!
+            \brief adds an element to the cluster
+
+            \param[in] ambigious_path   path to a file or folder
+            \param[in] modifier         determines how element should be inserted if at all 
+
+            \return true if inserted
+        */
+        bool add_element(const std::filesystem::path& ambigious_path, SelectModifier modifier);
+
+        //! Each element maps to a file/folder on disk
+        std::set<std::filesystem::path> m_elements;
+
+    private:
+
+        /*!
+            \brief Determines if an element should be added to the cluster based on
+                   the modifier set at the moment during runtime
+
+            \param[in] el           path to file or folder
+            \param[in] modifier     the modifier specified after SELECT clause
+
+            \return true if the element should be added
+        */
+        bool should_include_element(const std::filesystem::path& el, const SelectModifier modifier);
 };
 
 std::ostream& operator<<(std::ostream& stream, const Instr& instr);
@@ -43,18 +74,16 @@ class Runtime {
         /*!
             \brief Creates a new disk cluster on the stack
 
-            \param[in] n number of strings (filepaths) on the operand stack that should 
-                         be collapsed into a disk cluster
+            \param[in] modifier TODO
         */
-        void collapse_to_cluster(const std::size_t n);
+        void collapse_to_cluster(const SelectModifier modifier);
 
         /*!
             \brief Compresses disk clusters into a single disk cluster on the stack
 
-            \param[in] n number of disk clusters on the stack that should be
-                         collapsed (condensed) into a single one
+            \param[in] modifier TODO
         */
-        void collapse_clusters(const std::size_t n);
+        void collapse_clusters(const SelectModifier modifier);
 
         /*!
             \brief Filters out elements from a cluster based on a regex pattern
@@ -120,17 +149,6 @@ class Runtime {
             const std::filesystem::path& original_path, 
             const std::filesystem::path& renamed_path
         );
-
-        /*!
-            \brief Determines if an element should be added to a cluster based on
-                   the modifier set at the moment during runtime
-
-            \return true if the element should be added
-        */
-        bool should_include_element(const std::filesystem::path& element);
-
-        //! 0 = files only, 1 = directories only, -1 = all
-        int m_collapse_modifier = -1;
 
         std::vector<const void*> m_operands;
         std::vector<DiskCluster> m_disk_clusters;

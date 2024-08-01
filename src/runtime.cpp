@@ -8,8 +8,8 @@ namespace fs = std::filesystem;
 
 std::ostream& operator<<(std::ostream& stream, const Instr& instr) {
     switch (instr.m_type) {
-    case InstrType::PUSH_STRING:
-        stream << "PUSH_STRING";
+    case InstrType::PUSH:
+        stream << "PUSH";
         break;
     case InstrType::COLLAPSE_TO_CLUSTER:
         stream << "COLLAPSE_TO_CLUSTER";
@@ -29,9 +29,6 @@ std::ostream& operator<<(std::ostream& stream, const Instr& instr) {
     case InstrType::CLUSTER_REGEX_MATCH_FILTER:
         stream << "CLUSTER_REGEX_MATCH_FILTER";
         break;
-    case InstrType::SET_COLLAPSE_MODIFIER:
-        stream << "SET_COLLAPSE_MODIFIER";
-        break;
     }
     return stream;
 }
@@ -42,52 +39,73 @@ std::ostream& operator<<(std::ostream& stream, const DiskCluster& disk_cluster) 
     return stream;
 }
 
-void Runtime::collapse_to_cluster(const std::size_t n) {
-    DiskCluster disk_element;
-    for (int i = 0; i < n; i++) {
-        fs::path path(*reinterpret_cast<const std::string*>(m_operands.back()));
-        const auto element = fs::absolute(path);
+bool DiskCluster::add_element(const fs::path& ambigious_path, SelectModifier modifier) {
+    const auto el = fs::absolute(ambigious_path);
 
-        if (fs::exists(element)) {
-            if (fs::is_directory(element)) {
-                for (auto const& nested_element : fs::directory_iterator{element})
-                    if (should_include_element(nested_element))
-                        disk_element.m_elements.insert(nested_element);
-            } else if (should_include_element(element)) {
-                disk_element.m_elements.insert(std::move(element));
+    if (fs::exists(el)) {
+        if (fs::is_directory(el)) {
+            if (modifier == SelectModifier::RECURSIVE) {
+                for (const auto& deeply_nested_el : fs::recursive_directory_iterator{el})
+                    m_elements.insert(deeply_nested_el);
+            } else {
+                for (const auto& nested_el : fs::directory_iterator{el})
+                    if (should_include_element(nested_el, modifier)) 
+                        m_elements.insert(nested_el);
             }
-        } else {
-            std::cout << "warning: " << element << " does not exist, ignored\n";
+        } else if (should_include_element(el, modifier)) {
+            m_elements.insert(el);
         }
-
-        m_operands.pop_back();
+        return true;
     }
-    m_disk_clusters.emplace_back(std::move(disk_element));
+
+    std::cout << "warning: " << el << " does not exist, ignored\n";
+    return false;
 }
 
-void Runtime::collapse_clusters(const std::size_t n) {
-    for (int i = 0; i < n; i++) {
-        auto& first = m_disk_clusters[m_disk_clusters.size() - 2].m_elements;
-        auto& second = m_disk_clusters[m_disk_clusters.size() - 1].m_elements;
-        for (const auto& el : second) {
-            if (should_include_element(el)) first.insert(el);
-        }
-        m_disk_clusters.pop_back();
+bool DiskCluster::should_include_element(const fs::path& el, const SelectModifier modifier) {
+    switch (modifier) {
+    case SelectModifier::FILES:
+        return !fs::is_directory(el);
+    case SelectModifier::DIRECTORIES:
+        return fs::is_directory(el);
+    case SelectModifier::ANY:
+    case SelectModifier::RECURSIVE:
+        return true;
     }
 
-    if (m_collapse_modifier != -1) {
-        auto& disk_element = m_disk_clusters.back();
-        std::set<fs::path> cluster_elements = disk_element.m_elements;
-        for (const auto& element : cluster_elements) {
-            if (!should_include_element(element))
-                disk_element.m_elements.erase(element);
-        }
+    std::unreachable();
+}
+
+void Runtime::collapse_to_cluster(const SelectModifier modifier) {
+    DiskCluster disk_cluster;
+    std::size_t total_elements = reinterpret_cast<const std::size_t>(m_operands.back());
+    m_operands.pop_back();
+
+    for (auto i = 0; i < total_elements; i++) {
+        fs::path path(*reinterpret_cast<const std::string*>(m_operands.back()));
+        disk_cluster.add_element(path, modifier);
+        m_operands.pop_back();
     }
+    m_disk_clusters.emplace_back(disk_cluster);
+}
+
+void Runtime::collapse_clusters(const SelectModifier modifier) {
+    std::size_t total_elements = reinterpret_cast<const std::size_t>(m_operands.back()) + 1;
+    m_operands.pop_back();
+
+    DiskCluster compressed_cluster;
+    for (auto i = 0; i < total_elements; i++) {
+        const auto& disk_cluster = m_disk_clusters.back();
+        for (const auto& el : disk_cluster.m_elements)
+            compressed_cluster.add_element(el, modifier);
+        m_disk_clusters.pop_back();
+    }
+    m_disk_clusters.emplace_back(compressed_cluster);
 }
 
 bool Runtime::copy_disk_cluster(const void* path) {
-    fs::path ambiguous_path(*reinterpret_cast<const std::string*>(path));
-    auto dest_dir_path = fs::absolute(ambiguous_path);
+    const fs::path ambiguous_path(*reinterpret_cast<const std::string*>(path));
+    const auto dest_dir_path = fs::absolute(ambiguous_path);
     const auto& disk_cluster = m_disk_clusters.back();
 
     if (!fs::exists(dest_dir_path))
@@ -130,8 +148,8 @@ bool Runtime::copy_disk_cluster(const void* path) {
 }
 
 bool Runtime::move_disk_cluster(const void* path) {
-    fs::path ambiguous_path(*reinterpret_cast<const std::string*>(path));
-    auto dest_dir_path = fs::absolute(ambiguous_path);
+    const fs::path ambiguous_path(*reinterpret_cast<const std::string*>(path));
+    const auto dest_dir_path = fs::absolute(ambiguous_path);
     auto& disk_cluster = m_disk_clusters.back();
 
     if (!fs::exists(dest_dir_path))
@@ -143,24 +161,24 @@ bool Runtime::move_disk_cluster(const void* path) {
     }
 
     std::set<fs::path> cluster_elements = disk_cluster.m_elements;
-    for (const auto& element : cluster_elements) {
-        if (element.parent_path() == dest_dir_path) continue;
+    for (const auto& el : cluster_elements) {
+        if (el.parent_path() == dest_dir_path) continue;
 
-        const auto renamed_path = dest_dir_path / element.filename();
-        if (conflicting_pathname(element, renamed_path)) {
-            std::cout << "warning: Cannot MOVE " << element << " to " << dest_dir_path << " due to filename conflict\n";
+        const auto renamed_path = dest_dir_path / el.filename();
+        if (conflicting_pathname(el, renamed_path)) {
+            std::cout << "warning: Cannot MOVE " << el << " to " << dest_dir_path << " due to filename conflict\n";
             continue;
         }
 
         try {
-            fs::rename(element, renamed_path);
-            disk_cluster.m_elements.erase(element);
+            fs::rename(el, renamed_path);
+            disk_cluster.m_elements.erase(el);
             disk_cluster.m_elements.insert(renamed_path);
         } catch (const fs::filesystem_error& ex) {
             std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to MOVE " << element << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: Failed to MOVE " << el << " to " <<  dest_dir_path << "\n";
         } catch (...) {
-            std::cout << "warning: Unexpected failure moving " << element << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: Unexpected failure moving " << el << " to " <<  dest_dir_path << "\n";
         }
     }
 
@@ -204,8 +222,8 @@ bool Runtime::cluster_regex_match_filter(const void* include_or_exclude) {
 }
 
 bool Runtime::conflicting_pathname(
-    const std::filesystem::path& original_path, 
-    const std::filesystem::path& renamed_path
+    const fs::path& original_path, 
+    const fs::path& renamed_path
 ) {
     if (fs::exists(renamed_path)) {
         return !fs::is_directory(original_path) && !fs::is_directory(renamed_path) ||
@@ -215,7 +233,7 @@ bool Runtime::conflicting_pathname(
 }
 
 bool Runtime::create_missing_directory(
-    const std::filesystem::path& invalid_dir_path, 
+    const fs::path& invalid_dir_path, 
     const DiskCluster& disk_cluster,
     const std::string&& operation
 ) {
@@ -240,10 +258,6 @@ bool Runtime::create_missing_directory(
     return false;
 }
 
-bool Runtime::should_include_element(const std::filesystem::path& element) {
-    return (m_collapse_modifier == fs::is_directory(element)) || m_collapse_modifier == -1;
-}
-
 void Runtime::execute_program(const std::vector<Instr>& program) {
     bool fatal_error = false;
 
@@ -251,21 +265,22 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
         if (fatal_error) break;
 
         switch (instr.m_type) {
-        case InstrType::PUSH_STRING: {
+        case InstrType::PUSH: {
             m_operands.emplace_back(instr.m_operand);
             break;
         }
         case InstrType::COLLAPSE_TO_CLUSTER: {
-            collapse_to_cluster(reinterpret_cast<const std::size_t>(instr.m_operand));
+            const SelectModifier modifier = 
+                static_cast<const SelectModifier>(
+                    reinterpret_cast<const std::uint64_t>(instr.m_operand));
+            collapse_to_cluster(modifier);
             break;
         }
         case InstrType::COLLAPSE_CLUSTERS: {
-            collapse_clusters(reinterpret_cast<const std::size_t>(instr.m_operand));
-            break;
-        }
-        case InstrType::SET_COLLAPSE_MODIFIER: {
-            const int modifier = reinterpret_cast<const std::size_t>(instr.m_operand);
-            m_collapse_modifier = modifier;
+            const SelectModifier modifier = 
+                static_cast<const SelectModifier>(
+                    reinterpret_cast<const std::uint64_t>(instr.m_operand));
+            collapse_clusters(modifier);
             break;
         }
         case InstrType::CLUSTER_REGEX_MATCH_FILTER: {

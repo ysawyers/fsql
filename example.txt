@@ -1,1 +1,1 @@
-SELECT (SELECT "src" INCLUDE ".*\.cpp$"), "CMakeFiles";
+SELECT RECURSIVE "src", "CMakeFiles" INCLUDE ".*\.cpp$";

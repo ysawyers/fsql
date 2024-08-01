@@ -18,7 +18,7 @@ bool Parser::has_next_token() {
 bool Parser::virtual_directory(bool& is_disk_element) {
     const auto& tok = next_token();
     if (tok.m_type == TokenType::STRING) {
-        m_program.emplace_back(Instr{InstrType::PUSH_STRING, &tok.m_lexeme});
+        m_program.emplace_back(Instr{InstrType::PUSH, &tok.m_lexeme});
         is_disk_element = false;
         return true;
     } else if (tok.m_type == TokenType::LPAREN) {
@@ -89,7 +89,7 @@ bool Parser::filtering_clause() {
         try {
             // verifies validity of regex pattern before emitting instructions
             std::regex pattern(tok.m_lexeme);
-            m_program.emplace_back(Instr{InstrType::PUSH_STRING, &tok.m_lexeme});
+            m_program.emplace_back(Instr{InstrType::PUSH, &tok.m_lexeme});
             m_program.emplace_back(Instr{InstrType::CLUSTER_REGEX_MATCH_FILTER, reinterpret_cast<const void*>(is_include_clause)});
         } catch (const std::regex_error&) {
             return false;
@@ -107,14 +107,16 @@ bool Parser::select_clause() {
         return false;
     }
 
-    int modifier_type = -1;
+    SelectModifier modifier_type = SelectModifier::ANY;
     if (has_next_token()) {
         const auto& tok = next_token();
         if (tok.m_type == TokenType::SELECT_MODIFIER) {
             if (tok.m_lexeme == "FILES") {
-                modifier_type = 0;
+                modifier_type = SelectModifier::FILES;
             } else if (tok.m_lexeme == "DIRECTORIES") {
-                modifier_type = 1;
+                modifier_type = SelectModifier::DIRECTORIES;
+            } else if (tok.m_lexeme == "RECURSIVE") {
+                modifier_type = SelectModifier::RECURSIVE;
             }
         } else {
             push_back_token();
@@ -123,8 +125,7 @@ bool Parser::select_clause() {
 
     do {
         if (!has_next_token()) {
-            // TODO: come up with a better error message
-            fprintf(stderr, "error: ????\n");
+            fprintf(stderr, "error: Expecting one more value near SELECT clause\n");
             return false;
         }
 
@@ -139,15 +140,12 @@ bool Parser::select_clause() {
     } while (has_next_token() && (next_token().m_type == TokenType::COMMA));
     push_back_token();
 
-    if (modifier_type != -1)
-        m_program.emplace_back(Instr{InstrType::SET_COLLAPSE_MODIFIER, reinterpret_cast<void*>(modifier_type)});
-
-    m_program.emplace_back(Instr{InstrType::COLLAPSE_TO_CLUSTER, reinterpret_cast<void*>(string_elements)});
-    if (disk_elements)
-        m_program.emplace_back(Instr{InstrType::COLLAPSE_CLUSTERS, reinterpret_cast<void*>(disk_elements)});
-
-    if (modifier_type != -1)
-        m_program.emplace_back(Instr{InstrType::SET_COLLAPSE_MODIFIER, reinterpret_cast<void*>(-1)});
+    m_program.emplace_back(Instr{InstrType::PUSH, reinterpret_cast<void*>(string_elements)});
+    m_program.emplace_back(Instr{InstrType::COLLAPSE_TO_CLUSTER, reinterpret_cast<void*>(modifier_type)});
+    if (disk_elements) {
+        m_program.emplace_back(Instr{InstrType::PUSH, reinterpret_cast<void*>(disk_elements)});
+        m_program.emplace_back(Instr{InstrType::COLLAPSE_CLUSTERS, reinterpret_cast<void*>(modifier_type)});
+    }
 
     while (has_next_token()) {
         const auto& tok = next_token();
