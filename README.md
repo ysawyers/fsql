@@ -31,7 +31,12 @@ SELECT FILES "dir1", "dir2";
 
 ### Only grab directories
 ```
-SELECT DIRECTORIES "dir1", "dir";
+SELECT DIRECTORIES "dir1", "dir2";
+```
+
+### Open all nested files/directories
+```
+SELECT RECURSIVE "dir1", "dir2";
 ```
 
 ## Nested-query example
@@ -78,4 +83,3 @@ SELECT ... DELETE;
 # TODO
 
 - interactive shell
-- recursive select modifier
