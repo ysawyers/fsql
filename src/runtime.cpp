@@ -39,11 +39,12 @@ std::ostream& operator<<(std::ostream& stream, const DiskCluster& disk_cluster) 
     return stream;
 }
 
-bool DiskCluster::add_element(const fs::path& ambigious_path, SelectModifier modifier) {
-    const auto el = fs::absolute(ambigious_path);
+bool DiskCluster::add_element(const fs::path& ambiguous_path, SelectModifier modifier) {
+    const auto el = get_absolute_path(ambiguous_path);
 
-    if (fs::exists(el)) {
-        if (fs::is_directory(el)) {
+    try {
+        if (fs::exists(el)) {
+            if (fs::is_directory(el)) {
             if (modifier == SelectModifier::RECURSIVE) {
                 for (const auto& deeply_nested_el : fs::recursive_directory_iterator{el})
                     m_elements.insert(deeply_nested_el);
@@ -52,15 +53,30 @@ bool DiskCluster::add_element(const fs::path& ambigious_path, SelectModifier mod
                     if (should_include_element(nested_el, modifier)) 
                         m_elements.insert(nested_el);
             }
-        } else if (should_include_element(el, modifier)) {
-            m_elements.insert(el);
+            } else if (should_include_element(el, modifier)) {
+                m_elements.insert(el);
+            }
+            return true;
         }
-        return true;
+        std::cout << "warning: " << el << " does not exist, ignored\n";
+    } catch (const fs::filesystem_error& ex) {
+        std::cout << "warning: " << ex.what() << "\n";
     }
-
-    std::cout << "warning: " << el << " does not exist, ignored\n";
     return false;
 }
+
+fs::path DiskCluster::get_absolute_path(const fs::path& ambiguous_path) {
+    if (ambiguous_path.is_absolute()) return ambiguous_path;
+
+    auto path_iter = ambiguous_path.begin();
+    if (*path_iter == "~") {
+        fs::path expanded_absolute(getenv("HOME"));
+        for (auto it = std::next(path_iter, 1); it != ambiguous_path.end(); ++it)
+            expanded_absolute /= *it;
+        return expanded_absolute;
+    }
+    return fs::absolute(ambiguous_path);
+};
 
 bool DiskCluster::should_include_element(const fs::path& el, const SelectModifier modifier) {
     switch (modifier) {
@@ -137,10 +153,7 @@ bool Runtime::copy_disk_cluster(const void* path) {
                 fs::copy(el, dest_dir_path);
             }
         } catch (const fs::filesystem_error& ex) {
-            std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to COPY " << el << " to " <<  dest_dir_path << "\n";
-        } catch (...) {
-            std::cout << "warning: Unexpected failure copying " << el << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: " << ex.what() << "\n";
         }
     }
 
@@ -175,10 +188,7 @@ bool Runtime::move_disk_cluster(const void* path) {
             disk_cluster.m_elements.erase(el);
             disk_cluster.m_elements.insert(renamed_path);
         } catch (const fs::filesystem_error& ex) {
-            std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to MOVE " << el << " to " <<  dest_dir_path << "\n";
-        } catch (...) {
-            std::cout << "warning: Unexpected failure moving " << el << " to " <<  dest_dir_path << "\n";
+            std::cout << "warning: " << ex.what() << "\n";
         }
     }
 
@@ -193,10 +203,7 @@ bool Runtime::delete_disk_cluster() {
         try {
             fs::remove_all(el);
         } catch (const fs::filesystem_error& ex) {
-            std::cout << ex.what() << "\n";
-            std::cout << "warning: Failed to delete " << el << "\n";
-        } catch (...) {
-            std::cout << "warning: Unexpected failure deleting " << el << "\n";
+            std::cout << "warning: " << ex.what() << "\n";
         }
     }
     disk_cluster.m_elements.clear();

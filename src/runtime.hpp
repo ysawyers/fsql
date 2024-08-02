@@ -37,12 +37,12 @@ class DiskCluster {
         /*!
             \brief adds an element to the cluster
 
-            \param[in] ambigious_path   path to a file or folder
+            \param[in] ambiguous_path   path to a file or folder
             \param[in] modifier         determines how element should be inserted if at all 
 
             \return true if inserted
         */
-        bool add_element(const std::filesystem::path& ambigious_path, SelectModifier modifier);
+        bool add_element(const std::filesystem::path& ambiguous_path, SelectModifier modifier);
 
         //! Each element maps to a file/folder on disk
         std::set<std::filesystem::path> m_elements;
@@ -59,6 +59,11 @@ class DiskCluster {
             \return true if the element should be added
         */
         bool should_include_element(const std::filesystem::path& el, const SelectModifier modifier);
+
+        /*!
+            \brief TODO
+        */
+        std::filesystem::path get_absolute_path(const std::filesystem::path& ambiguous_path);
 };
 
 std::ostream& operator<<(std::ostream& stream, const Instr& instr);
