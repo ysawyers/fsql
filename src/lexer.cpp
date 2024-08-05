@@ -45,7 +45,7 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
     return stream;
 }
 
-const std::vector<Token>& Lexer::tokenize(std::ifstream& is) {
+const std::vector<Token>& Lexer::tokenize(std::istream& is) {
     is >> std::noskipws;
 
     char ch{};

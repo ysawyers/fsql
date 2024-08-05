@@ -32,12 +32,12 @@ std::ostream& operator<<(std::ostream& stream, const Token& token);
 class Lexer {
     public:
 
-        const std::vector<Token>& tokenize(std::ifstream& is);
+        const std::vector<Token>& tokenize(std::istream& is);
 
     private:
 
         std::vector<Token> m_tokens;
-        std::set<std::string> m_filtering_clauses{"INCLUDE", "EXCLUDE"};
+        std::set<std::string> m_filtering_clauses{"INCLUDE", "EXCLUDE", "MODIFIEDBEF", "MODIFIEDAFT"};
         std::set<std::string> m_modifying_clauses{"MOVE", "COPY", "DELETE"};
         std::set<std::string> m_select_modifiers{"FILES", "DIRECTORIES", "RECURSIVE"};
 };

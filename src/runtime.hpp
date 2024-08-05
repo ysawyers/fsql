@@ -12,6 +12,7 @@ enum class InstrType {
     COLLAPSE_TO_CLUSTER,
     COLLAPSE_CLUSTERS,
     CLUSTER_REGEX_MATCH_FILTER,
+    CLUSTER_MODIFIED_DATE_FILTER,
 
     // filesystem operations
     COPY_DE_CONTENTS,
@@ -72,7 +73,9 @@ std::ostream& operator<<(std::ostream& stream, const DiskCluster& DiskCluster);
 class Runtime {
     public:
 
-        void execute_program(const std::vector<Instr>& program);
+        void execute_program();
+
+        std::vector<Instr> m_program;
 
     private:
 
@@ -99,6 +102,11 @@ class Runtime {
             \return true if no critical errors
         */
         bool cluster_regex_match_filter(const void* include_or_exclude);
+
+        /*!
+            \brief TODO
+        */
+        bool cluster_modified_date_filter(bool select_after);
 
         /*!
             \brief moves each mapped file from the disk cluster and renames 

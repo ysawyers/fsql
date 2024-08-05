@@ -1,8 +1,8 @@
 #include "runtime.hpp"
-
-#include <regex>
-
 #include "common.hpp"
+
+#include <sstream>
+#include <regex>
 
 namespace fs = std::filesystem;
 
@@ -28,6 +28,9 @@ std::ostream& operator<<(std::ostream& stream, const Instr& instr) {
         break;
     case InstrType::CLUSTER_REGEX_MATCH_FILTER:
         stream << "CLUSTER_REGEX_MATCH_FILTER";
+        break;
+    case InstrType::CLUSTER_MODIFIED_DATE_FILTER:
+        stream << "CLUSTER_MODIFIED_DATE_FILTER";
         break;
     }
     return stream;
@@ -228,6 +231,32 @@ bool Runtime::cluster_regex_match_filter(const void* include_or_exclude) {
     return true;
 }
 
+bool Runtime::cluster_modified_date_filter(bool select_after) {
+    auto& disk_cluster = m_disk_clusters.back();
+    const std::string date = *reinterpret_cast<const std::string*>(m_operands.back());
+    std::istringstream iss(date);
+
+    std::tm tm{};
+    iss >> std::get_time(&tm, "%d/%m/%y-%H:%M:%S");
+    if (iss.fail()) {
+        std::cout << "runtime error: invalid date string, expected format is DD/MM/YYYY or DD/MM/YYYY-HH:MM:SS\n";
+        return false;
+    }
+
+    const auto threshold = mktime(&tm);
+    std::set<fs::path> matched_elements;
+    for (const auto& el : disk_cluster.m_elements) {
+        const auto epoch_timestamp = std::chrono::duration_cast<std::chrono::seconds>
+            (fs::last_write_time(el).time_since_epoch()).count();
+
+        if (((epoch_timestamp >= threshold) && select_after) || (epoch_timestamp <= threshold))
+            matched_elements.insert(el);
+    }
+    disk_cluster.m_elements = matched_elements;
+
+    return true;
+}
+
 bool Runtime::conflicting_pathname(
     const fs::path& original_path, 
     const fs::path& renamed_path
@@ -265,10 +294,10 @@ bool Runtime::create_missing_directory(
     return false;
 }
 
-void Runtime::execute_program(const std::vector<Instr>& program) {
+void Runtime::execute_program() {
     bool fatal_error = false;
 
-    for (const auto& instr : program) {
+    for (const auto& instr : m_program) {
         if (fatal_error) break;
 
         switch (instr.m_type) {
@@ -294,6 +323,10 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
             fatal_error = !cluster_regex_match_filter(instr.m_operand);
             break;
         }
+        case InstrType::CLUSTER_MODIFIED_DATE_FILTER: {
+            fatal_error = !cluster_modified_date_filter(instr.m_operand);
+            break;
+        }
         case InstrType::COPY_DE_CONTENTS: {
             fatal_error = !copy_disk_cluster(instr.m_operand);
             break;
@@ -308,6 +341,4 @@ void Runtime::execute_program(const std::vector<Instr>& program) {
         }
         }
     }
-
-    std::cout << m_disk_clusters[0] << std::endl;
 }

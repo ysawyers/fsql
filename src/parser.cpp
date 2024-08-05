@@ -94,6 +94,17 @@ bool Parser::filtering_clause() {
         } catch (const std::regex_error&) {
             return false;
         }
+    } else if ((tok.m_lexeme == "MODIFIEDBEF") || (tok.m_lexeme == "MODIFIEDAFT")) {
+        bool select_after = tok.m_lexeme == "MODIFIEDAFT";
+        const auto& tok = next_token();
+
+        if (tok.m_type != TokenType::STRING) {
+            std::cerr << "error: Unexpected token, expected string literal\n";
+            return false;
+        }
+
+        m_program.emplace_back(Instr{InstrType::PUSH, &tok.m_lexeme});
+        m_program.emplace_back(Instr{InstrType::CLUSTER_MODIFIED_DATE_FILTER, reinterpret_cast<const void*>(select_after)});
     }
 
     return true;
@@ -177,21 +188,20 @@ bool Parser::statement() {
                 if (!modifying_clause()) return false;
         }
     } else {
+        std::cerr << "error: Expected SELECT clause\n";
         return false;
     }
 
     if (!has_next_token() || (next_token().m_type != TokenType::SEMICOL)) {
-        fprintf(stderr, "error: Expected semi-colon\n");
+        fprintf(stderr, "error: Missing semi-colon\n");
         return false;
     }
     return true;
 }
 
-void Parser::generate_program() {
+bool Parser::generate_program() {
     bool successful = true;
     while (successful && has_next_token())
         successful = statement();
-
-    if (!successful)
-        throw std::runtime_error("failed to execute query!");
+    return successful;
 }

@@ -10,7 +10,7 @@ class Parser {
         Parser(const std::vector<Token>& tokens, std::vector<Instr>& program) 
             : m_curr_token_idx(0), m_tokens(tokens), m_program(program) {};
 
-        void generate_program();
+        bool generate_program();
 
     private:
 

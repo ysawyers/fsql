@@ -2,21 +2,30 @@
 #include "parser.hpp"
 
 #include <iostream>
+#include <sstream>
+
+const std::string_view program = "FSQL 0.0.1";
+
+void run(std::istringstream& stream) {
+    Lexer lexer;
+    const auto& tokens = lexer.tokenize(stream);
+    
+    Runtime runtime;
+    Parser parser(tokens, runtime.m_program);
+    if (parser.generate_program()) runtime.execute_program();
+}
 
 int main() {
-    std::ifstream file("example.txt");
-    Lexer lexer;
+    std::cout << program << "\n";
+    while (true) {
+        printf(">>> ");
 
-    const auto& tokens = lexer.tokenize(file);
-    std::vector<Instr> program;
-    Parser parser(tokens, program);
-
-    try {
-        parser.generate_program();
-        Runtime runtime;
-        runtime.execute_program(program);
-    } catch (...) {
-        std::cout << "we failed!\n";
+        std::string query;
+        std::getline(std::cin, query, '\n');
+        if (!query.empty()) {
+            std::istringstream stream(query);
+            run(stream);
+        }
     }
 
     return EXIT_SUCCESS;
