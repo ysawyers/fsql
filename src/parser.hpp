@@ -8,7 +8,7 @@ class Parser {
     public:
 
         Parser(const std::vector<Token>& tokens, std::vector<Instr>& program) 
-            : m_curr_token_idx(0), m_tokens(tokens), m_program(program) {};
+            : m_curr_token_idx(0), m_tokens(tokens), m_program(program), m_has_modifying_clause(false) {};
 
         bool generate_program();
 
@@ -36,6 +36,7 @@ class Parser {
         bool has_next_token();
 
         std::vector<Instr>& m_program;
+        bool m_has_modifying_clause;
         const std::vector<Token>& m_tokens;
         std::size_t m_curr_token_idx;
 };

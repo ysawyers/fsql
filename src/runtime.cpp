@@ -32,6 +32,9 @@ std::ostream& operator<<(std::ostream& stream, const Instr& instr) {
     case InstrType::CLUSTER_MODIFIED_DATE_FILTER:
         stream << "CLUSTER_MODIFIED_DATE_FILTER";
         break;
+    case InstrType::PRINT_DISK_CLUSTER:
+        stream << "PRINT_DISK_CLUSTER";
+        break;
     }
     return stream;
 }
@@ -337,6 +340,10 @@ void Runtime::execute_program() {
         }
         case InstrType::DELETE_DE_CONTENTS: {
             fatal_error = !delete_disk_cluster();
+            break;
+        }
+        case InstrType::PRINT_DISK_CLUSTER: {
+            std::cout << m_disk_clusters.back() << std::endl;
             break;
         }
         }

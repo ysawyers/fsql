@@ -7,14 +7,13 @@
 #include <set>
 
 enum class InstrType {
-    // general instructions
     PUSH,
     COLLAPSE_TO_CLUSTER,
     COLLAPSE_CLUSTERS,
     CLUSTER_REGEX_MATCH_FILTER,
     CLUSTER_MODIFIED_DATE_FILTER,
+    PRINT_DISK_CLUSTER,
 
-    // filesystem operations
     COPY_DE_CONTENTS,
     MOVE_DE_CONTENTS,
     DELETE_DE_CONTENTS,

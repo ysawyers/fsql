@@ -66,6 +66,7 @@ bool Parser::modifying_clause() {
         m_program.emplace_back(Instr{InstrType::COPY_DE_CONTENTS, &tok.m_lexeme});
     }
 
+    m_has_modifying_clause = true;
     return true;
 }
 
@@ -203,5 +204,9 @@ bool Parser::generate_program() {
     bool successful = true;
     while (successful && has_next_token())
         successful = statement();
+    
+    if (!m_has_modifying_clause)
+        m_program.emplace_back(Instr{ .m_type = InstrType::PRINT_DISK_CLUSTER });
+
     return successful;
 }
