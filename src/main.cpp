@@ -1,32 +1,32 @@
-#include "lexer.hpp"
-#include "parser.hpp"
-
 #include <iostream>
-#include <sstream>
 
-const std::string_view program = "FSQL 0.0.1";
+#include "parser.hpp"
+#include "runtime.hpp"
 
-void run(std::istringstream& stream) {
-    Lexer lexer;
-    const auto& tokens = lexer.tokenize(stream);
-    
-    Runtime runtime;
-    Parser parser(tokens, runtime.m_program);
-    if (parser.generate_program()) runtime.execute_program();
+const std::string program = "FSQL 0.0.0";
+
+void run(std::istream& stream) 
+{
+    try
+    {
+        Parser parser(stream);
+
+        auto ast = parser.build_ast();
+        ast->path_validation();
+        ast->prune_conflicting_select();
+
+        Runtime runtime;
+        runtime.run(ast->compile());
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 }
 
-int main() {
-    std::cout << program << "\n";
-    while (true) {
-        printf(">>> ");
-
-        std::string query;
-        std::getline(std::cin, query, '\n');
-        if (!query.empty()) {
-            std::istringstream stream(query);
-            run(stream);
-        }
-    }
-
+int main()
+{
+    std::ifstream source_file("source.fsql");
+    run(source_file);
     return EXIT_SUCCESS;
 }

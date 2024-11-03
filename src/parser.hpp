@@ -1,44 +1,29 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
-#include "lexer.hpp"
-#include "runtime.hpp"
+#include "ast.hpp"
 
-class Parser {
+class Parser
+{
     public:
+        Parser(std::istream& is);
 
-        Parser(const std::vector<Token>& tokens, std::vector<Instr>& program) 
-            : m_curr_token_idx(0), m_tokens(tokens), m_program(program), m_has_modifying_clause(false) {};
-
-        bool generate_program();
+        std::unique_ptr<AST> build_ast();
 
     private:
-
-        //! STMT = select_clause, [ modifying_clause ] ";"
-        bool statement();
-
-        //! SELECT_CLAUSE = "SELECT" [ "FILES" | "DIRECTORIES" ], virtual_directory, { virtual_directory }, { filtering_clause }
-        bool select_clause();
-
-        //! MODIFYING_CLAUSE = COPY string_literal | MOVE string_literal | DELETE
-        bool modifying_clause();
-
-        //! FILTERING_CLAUSE = ???
-        bool filtering_clause();
-
-        //! VIRTUAL_DIRECTORY = string_literal | "(" select_clause ")"
-        bool virtual_directory(bool& is_disk_element);
-
-        const Token& next_token();
-
+        lexer::Token& next_token();
         void push_back_token();
-
         bool has_next_token();
 
-        std::vector<Instr>& m_program;
-        bool m_has_modifying_clause;
-        const std::vector<Token>& m_tokens;
-        std::size_t m_curr_token_idx;
+        std::shared_ptr<Query> query();
+        std::shared_ptr<Element> element();
+        std::shared_ptr<CompoundElement> compound_element();
+
+        bool is_select_type(lexer::TokenType tokenType);
+
+    private:
+        std::vector<lexer::Token> m_tokens;
+        std::uint32_t m_token_pos;
 };
 
 #endif

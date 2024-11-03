@@ -1,113 +1,83 @@
 #include "lexer.hpp"
 
-#include <iostream>
-#include <ctype.h>
+#include <unordered_map>
 
-std::ostream& operator<<(std::ostream& stream, const Token& token) {
-    switch (token.m_type) {
-    case TokenType::SELECT_CLAUSE: 
-        stream << "SELECT_CLAUSE";
-        break;
-    case TokenType::STRING:
-        stream << "STRING : " << token.m_lexeme;
-        break;
-    case TokenType::IDENT:
-        stream << "IDENT : " << token.m_lexeme;
-        break;
-    case TokenType::NUMBER:
-        stream << "NUMBER : " << token.m_lexeme;
-        break;
-    case TokenType::SEMICOL:
-        stream << "SEMICOL";
-        break;
-    case TokenType::INVALID:
-        stream << "INVALID";
-        break;
-    case TokenType::LPAREN:
-        stream << "LPAREN";
-        break;
-    case TokenType::RPAREN:
-        stream << "RPAREN";
-        break;
-    case TokenType::COMMA:
-        stream << "COMMA";
-        break;
-    case TokenType::MODIFYING_CLAUSE:
-        stream << "MODIFYING_CLAUSE";
-        break;
-    case TokenType::FILTERING_CLAUSE:
-        stream << "FILTERING_CLAUSE";
-        break;
-    case TokenType::SELECT_MODIFIER:
-        stream << "SELECT_MODIFIER";
-        break;
+namespace lexer
+{
+    std::unordered_map<std::string, TokenType> select_type =
+    {
+        {"files", TokenType::FILES},
+        {"directories", TokenType::DIRECTORIES},
+        {"all", TokenType::ALL}
+    };
+
+    void handle_string(std::istream& is, std::string& lexeme)
+    {
+        char ch{};
+        while ((is >> ch) && ch != '\"')
+        {
+            lexeme += ch;
+        }
     }
-    return stream;
-}
 
-const std::vector<Token>& Lexer::tokenize(std::istream& is) {
-    is >> std::noskipws;
+    void generate_tokens(std::istream& is, std::vector<Token>& tokens) 
+    {
+        char ch{};
 
-    char ch{};
-    while (is >> ch) {
-        std::string lexeme;
-        TokenType token_type;
+        while (is >> ch)
+        {
+            Token new_token;
 
-        switch (ch) {
-        case '\"':
-            while ((is >> ch) && ch != '\"')
-                lexeme += ch;
-            token_type = TokenType::STRING;
-            break;
-        case ';':
-            lexeme += ";";
-            token_type = TokenType::SEMICOL;
-            break;
-        case '(':
-            lexeme += "(";
-            token_type = TokenType::LPAREN;
-            break;
-        case ')':
-            lexeme += ")";
-            token_type = TokenType::RPAREN;
-            break;
-        case ',':
-            lexeme += ",";
-            token_type = TokenType::COMMA;
-            break;
-        case ' ':
-            continue;
-        default: {
-            if (isdigit(ch)) {
-                do {
-                    lexeme += ch;
-                } while (isdigit(is.peek()) && (is >> ch));
-                token_type = TokenType::NUMBER;
-            } else if (isalpha(ch)) {
-                do {
-                    lexeme += ch;
-                } while (isalnum(is.peek()) && (is >> ch));
+            switch (ch) 
+            {
+            case '\"':
+                handle_string(is, new_token.m_lexeme);
+                new_token.m_type = TokenType::STRING;
+                break;
+            case ';':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::SEMICOL;
+                break;
+            case '(':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::LPAREN;
+                break;
+            case ')':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::RPAREN;
+                break;
+            case ',':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::COMMA;
+                break;
+            default:
+                if (isalpha(ch)) 
+                {
+                    do 
+                    {
+                        new_token.m_lexeme += ch;
+                    } while (isalnum(is.peek()) && (is >> ch));
 
-                if (lexeme == "SELECT") {
-                    token_type = TokenType::SELECT_CLAUSE;
-                } else if (m_modifying_clauses.contains(lexeme)) {
-                    token_type = TokenType::MODIFYING_CLAUSE;
-                } else if (m_filtering_clauses.contains(lexeme)) {
-                    token_type = TokenType::FILTERING_CLAUSE;
-                } else if (m_select_modifiers.contains(lexeme)) {
-                    token_type = TokenType::SELECT_MODIFIER;
-                } else {
-                    token_type = TokenType::IDENT;
+                    if (new_token.m_lexeme == "select") 
+                    {
+                        new_token.m_type = TokenType::SELECT;
+                    }
+                    else if (select_type.contains(new_token.m_lexeme)) 
+                    {
+                        new_token.m_type = select_type[new_token.m_lexeme];
+                    }
+                    else
+                    {
+                        throw new std::runtime_error("invalid token");
+                    }
                 }
-            } else {
-                // unrecognized characters are just ignored
-                continue;
+                else 
+                {
+                    throw new std::runtime_error("invalid token");
+                }
             }
-        }
-        }
 
-        m_tokens.emplace_back(Token{lexeme, token_type});
+            tokens.emplace_back(new_token);
+        }
     }
-
-    return m_tokens;
 }

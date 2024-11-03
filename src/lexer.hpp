@@ -3,43 +3,31 @@
 
 #include <fstream>
 #include <vector>
-#include <set>
-#include <string>
 
-enum class TokenType {
-    SELECT_CLAUSE,
-    SELECT_MODIFIER,
-    MODIFYING_CLAUSE,
-    FILTERING_CLAUSE,
+namespace lexer 
+{
+    enum class TokenType 
+    {
+        SELECT,
+        FILES,
+        DIRECTORIES,
+        ALL,
 
-    IDENT,
-    STRING,
-    NUMBER,
-    SEMICOL,
-    LPAREN,
-    RPAREN,
-    COMMA,
-    INVALID
-};
+        LPAREN,
+        RPAREN,
+        COMMA,
+        SEMICOL,
 
-struct Token {
-    std::string m_lexeme;
-    TokenType m_type;
-};
+        STRING,
+    };
 
-std::ostream& operator<<(std::ostream& stream, const Token& token);
+    struct Token 
+    {
+        std::string m_lexeme;
+        TokenType m_type;
+    };
 
-class Lexer {
-    public:
-
-        const std::vector<Token>& tokenize(std::istream& is);
-
-    private:
-
-        std::vector<Token> m_tokens;
-        std::set<std::string> m_filtering_clauses{"INCLUDE", "EXCLUDE", "MODIFIEDBEF", "MODIFIEDAFT"};
-        std::set<std::string> m_modifying_clauses{"MOVE", "COPY", "DELETE"};
-        std::set<std::string> m_select_modifiers{"FILES", "DIRECTORIES", "RECURSIVE"};
-};
+    void generate_tokens(std::istream& is, std::vector<Token>& tokens);
+}
 
 #endif

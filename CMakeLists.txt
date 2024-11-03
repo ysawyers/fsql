@@ -4,4 +4,4 @@ project(fsql)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(${PROJECT_NAME} src/main.cpp src/lexer.cpp src/parser.cpp src/runtime.cpp src/common.cpp)
+add_subdirectory(src)
