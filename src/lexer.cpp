@@ -1,6 +1,7 @@
 #include "lexer.hpp"
 
 #include <unordered_map>
+#include <format>
 
 namespace lexer
 {
@@ -8,7 +9,16 @@ namespace lexer
     {
         {"files", TokenType::FILES},
         {"directories", TokenType::DIRECTORIES},
-        {"all", TokenType::ALL}
+        {"all", TokenType::ALL},
+        {"recursive", TokenType::RECURSIVE}
+    };
+
+    std::unordered_map<std::string, TokenType> disk_operations =
+    {
+        {"move", TokenType::MOVE},
+        {"copy", TokenType::COPY},
+        {"delete", TokenType::DELETE},
+        {"display", TokenType::DISPLAY}
     };
 
     void handle_string(std::istream& is, std::string& lexeme)
@@ -66,14 +76,18 @@ namespace lexer
                     {
                         new_token.m_type = select_type[new_token.m_lexeme];
                     }
+                    else if (disk_operations.contains(new_token.m_lexeme))
+                    {
+                        new_token.m_type = disk_operations[new_token.m_lexeme];
+                    }
                     else
                     {
-                        throw new std::runtime_error("invalid token");
+                        throw std::runtime_error(std::format("invalid token: {}", new_token.m_lexeme));
                     }
                 }
                 else 
                 {
-                    throw new std::runtime_error("invalid token");
+                    throw std::runtime_error("invalid token: ???");
                 }
             }
 

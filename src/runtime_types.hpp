@@ -5,13 +5,12 @@ enum class InstrType
 {
     PUSH,
     CREATE_CLUSTER,
-    MERGE_CLUSTERS
+    MERGE_CLUSTERS,
 
-    // TODO: future operations
-    // RENAME
-    // DELETE
-    // MOVE
-    // COPY
+    DELETE,
+    COPY,
+    MOVE,
+    DISPLAY
 };
 
 struct Instr

@@ -5,8 +5,48 @@
 #include <filesystem>
 #include <vector>
 #include <set>
+#include <functional>
 
 #include "runtime_types.hpp"
+
+class Cluster
+{
+    public:
+        Cluster() : m_parent(nullptr) {};
+
+        virtual void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation) = 0;
+
+        void execute(std::function<void(const std::filesystem::path& path)> operation);
+
+    public:
+        std::shared_ptr<Cluster> m_parent;
+        std::vector<std::shared_ptr<Cluster>> m_children;
+        std::vector<std::filesystem::path> m_paths;
+};
+
+class AllCluster : public Cluster
+{
+    public:
+        void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation);
+};
+
+class RecursiveCluster : public Cluster
+{
+    public:
+        void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation);
+};
+
+class DirectoriesCluster : public Cluster
+{
+    public:
+        void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation);
+};
+
+class FilesCluster : public Cluster
+{
+    public:
+        void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation); 
+};
 
 class Runtime
 {
@@ -22,12 +62,13 @@ class Runtime
         void create_cluster(std::uint64_t n_paths);
         void merge_clusters(std::uint64_t n_clusters);
 
-        void unpack_all(std::shared_ptr<std::set<std::filesystem::path>> cluster, std::filesystem::path& directory);
-        void unpack_files(std::shared_ptr<std::set<std::filesystem::path>> cluster, std::filesystem::path& directory);
-        void unpack_directories(std::shared_ptr<std::set<std::filesystem::path>> cluster, std::filesystem::path& directory);
+        void display_operation();
+        void delete_operation();
+        void copy_operation(std::filesystem::path& destination_path);
+        void move_operation(std::filesystem::path& destination_path);
 
     private:
-        std::array<std::shared_ptr<std::set<std::filesystem::path>>, 1024> m_cluster_stack;
+        std::array<std::shared_ptr<Cluster>, 1024> m_cluster_stack;
         std::array<void*, 1024> m_operand_stack;
         int m_operand_sp;
         int m_cluster_sp;

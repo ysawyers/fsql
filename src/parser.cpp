@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+#include <iostream>
+
 Parser::Parser(std::istream& is) : m_token_pos(0)
 {
     lexer::generate_tokens(is, m_tokens);
@@ -26,7 +28,43 @@ void Parser::push_back_token()
 bool Parser::is_select_type(lexer::TokenType tokenType)
 {
     return (tokenType == lexer::TokenType::FILES) || (tokenType == lexer::TokenType::DIRECTORIES) ||
-        (tokenType == lexer::TokenType::ALL);
+        (tokenType == lexer::TokenType::ALL) || (tokenType == lexer::TokenType::RECURSIVE);
+}
+
+std::shared_ptr<DiskOperation> Parser::disk_operation()
+{
+    switch (next_token().m_type)
+    {
+    case lexer::TokenType::DISPLAY: return std::make_shared<DisplayOp>();
+    case lexer::TokenType::DELETE: return std::make_shared<DeleteOp>();
+    case lexer::TokenType::COPY:
+    {
+        if (!has_next_token())
+        {
+            throw std::runtime_error("expected destination path after copy keyword");
+        }
+        auto& destination_path = next_token();
+        if (destination_path.m_type == lexer::TokenType::STRING)
+        {
+            return std::make_shared<CopyOp>(destination_path.m_lexeme);
+        }
+        throw std::runtime_error("expected destination path after copy keyword");
+    }
+    case lexer::TokenType::MOVE:
+    {
+        if (!has_next_token())
+        {
+            throw std::runtime_error("expected destination path after move keyword");
+        }
+        auto& destination_path = next_token();
+        if (destination_path.m_type == lexer::TokenType::STRING)
+        {
+            return std::make_shared<MoveOp>(destination_path.m_lexeme);
+        }
+        throw std::runtime_error("expected destination path after move keyword");
+    }
+    default: throw std::runtime_error("expected disk operation: display, delete, copy, move");
+    }
 }
 
 std::shared_ptr<CompoundElement> Parser::compound_element()
@@ -84,8 +122,9 @@ std::shared_ptr<Query> Parser::query()
             {
                 query->m_elements.emplace_back(element());
             } while (has_next_token() && (next_token().m_type == lexer::TokenType::COMMA));
-
             push_back_token();
+
+            query->m_disk_operation = disk_operation();
 
             if (next_token().m_type == lexer::TokenType::SEMICOL)
             {

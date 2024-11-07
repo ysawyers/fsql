@@ -18,6 +18,7 @@ class Parser
         std::shared_ptr<Query> query();
         std::shared_ptr<Element> element();
         std::shared_ptr<CompoundElement> compound_element();
+        std::shared_ptr<DiskOperation> disk_operation();
 
         bool is_select_type(lexer::TokenType tokenType);
 

@@ -12,7 +12,6 @@ void run(std::istream& stream)
         Parser parser(stream);
 
         auto ast = parser.build_ast();
-        ast->path_validation();
         ast->prune_conflicting_select();
 
         Runtime runtime;

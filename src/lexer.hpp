@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 
-namespace lexer 
+namespace lexer
 {
     enum class TokenType 
     {
@@ -12,13 +12,19 @@ namespace lexer
         FILES,
         DIRECTORIES,
         ALL,
+        RECURSIVE,
+
+        MOVE,
+        COPY,
+        DELETE,
+        DISPLAY,
 
         LPAREN,
         RPAREN,
         COMMA,
         SEMICOL,
 
-        STRING,
+        STRING
     };
 
     struct Token 
