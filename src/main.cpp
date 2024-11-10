@@ -3,9 +3,12 @@
 #include "parser.hpp"
 #include "runtime.hpp"
 
-const std::string program = "FSQL 0.0.0";
+#include <iostream>
+#include <string>
 
-void run(std::istream& stream) 
+const char* program = "FSQL 0.0.0";
+
+int run(std::istream& stream) 
 {
     try
     {
@@ -20,12 +23,21 @@ void run(std::istream& stream)
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
+        return EXIT_FAILURE;
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    std::ifstream source_file("source.fsql");
-    run(source_file);
+    if (argc < 2)
+    {
+        // TODO
+        exit(1);
+    }
+    else
+    {
+        std::ifstream source_file(argv[1]);
+        return run(source_file);
+    }
     return EXIT_SUCCESS;
 }

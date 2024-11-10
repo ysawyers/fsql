@@ -20,7 +20,11 @@ namespace lexer
         {"extension", TokenType::EXTENSION},
         {"size", TokenType::SIZE},
         {"and", TokenType::AND},
-        {"or", TokenType::OR}
+        {"or", TokenType::OR},
+        {"B", TokenType::B},
+        {"KB", TokenType::KB},
+        {"MB", TokenType::MB},
+        {"GB", TokenType::GB}
     };
 
     void handle_string(std::istream& is, std::string& lexeme)
@@ -45,6 +49,14 @@ namespace lexer
             case '\"':
                 handle_string(is, new_token.m_lexeme);
                 new_token.m_type = TokenType::STRING;
+                break;
+            case '<':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::LTHAN;
+                break;
+            case '>':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::GTHAN;
                 break;
             case '=':
                 new_token.m_lexeme = ch;

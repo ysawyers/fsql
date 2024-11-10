@@ -9,15 +9,15 @@
 
 struct Rule
 {
-    virtual void emit(std::vector<Instr>& program) = 0;
+    void emit(std::vector<Instr>& program);
+
+    std::function<bool(const std::filesystem::path&)> m_predicate;
 };
 
 class AndRule : public Rule
 {
     public:
-        AndRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) {};
-
-        void emit(std::vector<Instr>& program);
+        AndRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs);
 
     private:
         std::shared_ptr<Rule> m_lhs;
@@ -27,10 +27,8 @@ class AndRule : public Rule
 class OrRule : public Rule
 {
     public:
-        OrRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) {};
+        OrRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs);
 
-        void emit(std::vector<Instr>& program);
-    
     private:
         std::shared_ptr<Rule> m_lhs;
         std::shared_ptr<Rule> m_rhs;
@@ -39,10 +37,8 @@ class OrRule : public Rule
 class ExtensionRule : public Rule
 {
     public:
-        ExtensionRule(const std::string& extension) : m_extension(extension) {};
+        ExtensionRule(const std::string& extension);
 
-        void emit(std::vector<Instr>& program);
-    
     private:
         const std::string& m_extension;
 };
@@ -50,9 +46,10 @@ class ExtensionRule : public Rule
 class SizeRule : public Rule
 {
     public:
-        SizeRule();
+        SizeRule(std::uint64_t threshold_size, bool within_threshold);
 
-        void emit(std::vector<Instr>& program);
+    private:
+        std::uint64_t m_threshold_size;
 };
 
 struct Element

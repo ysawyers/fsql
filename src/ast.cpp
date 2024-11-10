@@ -177,29 +177,46 @@ void CopyOp::emit(std::vector<Instr>& program)
     program.emplace_back(Instr{ InstrType::COPY, reinterpret_cast<void*>(&m_destination_path) });
 }
 
-void AndRule::emit(std::vector<Instr>& program)
+void Rule::emit(std::vector<Instr>& program)
 {
-    printf("and rule\n");
-    std::exit(1);
+    program.emplace_back(Instr{ InstrType::PUSH, reinterpret_cast<void*>(&m_predicate) });
 }
 
-void OrRule::emit(std::vector<Instr>& program)
+AndRule::AndRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) 
 {
-    printf("or rule\n");
-    std::exit(1);
+    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        return m_lhs->m_predicate(path) && m_rhs->m_predicate(path);
+    });
 }
 
-void ExtensionRule::emit(std::vector<Instr>& program)
+OrRule::OrRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) 
 {
-    program.emplace_back(Instr{ InstrType::PUSH, reinterpret_cast<void*>(new std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
-        return m_extension == path.extension();
-    })) });
+    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        return m_lhs->m_predicate(path) || m_rhs->m_predicate(path);
+    });
 }
 
-void SizeRule::emit(std::vector<Instr>& program)
+ExtensionRule::ExtensionRule(const std::string& extension) : m_extension(extension) 
 {
-    printf("size rule\n");
-    std::exit(1);
+    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        return path.extension() == m_extension;
+    });
+}
+
+SizeRule::SizeRule(std::uint64_t threshold_size, bool within_threshold) : m_threshold_size(threshold_size)
+{
+    if (within_threshold)
+    {
+        m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+            return fs::file_size(path) <= m_threshold_size;
+        });
+    }
+    else
+    {
+        m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+            return fs::file_size(path) >= m_threshold_size;
+        });
+    }
 }
 
 void AST::prune_conflicting_select()

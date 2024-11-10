@@ -33,17 +33,52 @@ std::shared_ptr<Rule> Parser::primary_rule()
     case lexer::TokenType::EXTENSION:
         if (next_token().m_type == lexer::TokenType::EQ)
         {
-            auto& string_token = next_token();
-            if (string_token.m_type == lexer::TokenType::STRING)
+            auto& string_tok = next_token();
+            if (string_tok.m_type == lexer::TokenType::STRING)
             {
-                return std::make_shared<ExtensionRule>(string_token.m_lexeme);
+                return std::make_shared<ExtensionRule>(string_tok.m_lexeme);
             }
             throw std::runtime_error("invalid syntax: expected string");
         }
         throw std::runtime_error("invalid syntax: missing =");
     case lexer::TokenType::SIZE:
-        printf("SIZE\n");
-        exit(1);
+        {
+            auto comparison_tok = next_token();
+            if ((comparison_tok.m_type == lexer::TokenType::LTHAN) || (comparison_tok.m_type == lexer::TokenType::GTHAN))
+            {
+                auto threshold_tok = next_token();
+                if (threshold_tok.m_type == lexer::TokenType::NUMBER)
+                {
+                    std::uint64_t threshold = std::stoi(threshold_tok.m_lexeme);
+                    switch (next_token().m_type)
+                    {
+                    case lexer::TokenType::B: break;
+                    case lexer::TokenType::KB:
+                        threshold *= 1024;
+                        break;
+                    case lexer::TokenType::MB:
+                        threshold *= 1024 * 1024;
+                        break;
+                    case lexer::TokenType::GB:
+                        threshold *= 1024 * 1024 * 1024;
+                        break;
+                    default: throw std::runtime_error("invalid syntax: expected size type (B, KB, MB, or GB)");
+                    }
+                    return std::make_shared<SizeRule>(threshold, comparison_tok.m_type == lexer::TokenType::LTHAN);
+                }
+                throw std::runtime_error("invalid syntax: expected number");
+            }
+            throw std::runtime_error("invalid syntax: expected comparison operator");
+        }
+    case lexer::TokenType::LPAREN:
+        {
+            auto compound_rule = and_rule();
+            if (next_token().m_type == lexer::TokenType::RPAREN)
+            {
+                return compound_rule;
+            }
+            throw std::runtime_error("invalid syntax: missing )");
+        }
     default: throw std::runtime_error("invalid syntax: expected keyword after where");
     }
 }

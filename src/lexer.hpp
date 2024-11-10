@@ -25,6 +25,13 @@ namespace lexer
         EXTENSION,
         SIZE,
 
+        B,
+        KB,
+        MB,
+        GB,
+
+        LTHAN,
+        GTHAN,
         LPAREN,
         RPAREN,
         COMMA,
