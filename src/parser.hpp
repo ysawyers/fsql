@@ -13,12 +13,16 @@ class Parser
     private:
         lexer::Token& next_token();
         void push_back_token();
-        bool has_next_token();
 
         std::shared_ptr<Query> query();
         std::shared_ptr<Element> element();
         std::shared_ptr<CompoundElement> compound_element();
         std::shared_ptr<DiskOperation> disk_operation();
+        std::vector<std::shared_ptr<Element>> element_list();
+
+        std::shared_ptr<Rule> and_rule();
+        std::shared_ptr<Rule> or_rule();
+        std::shared_ptr<Rule> primary_rule();
 
         bool is_select_type(lexer::TokenType tokenType);
 

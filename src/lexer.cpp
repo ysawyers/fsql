@@ -5,20 +5,22 @@
 
 namespace lexer
 {
-    std::unordered_map<std::string, TokenType> select_type =
+    std::unordered_map<std::string, TokenType> keywords =
     {
+        {"select", TokenType::SELECT},
+        {"where", TokenType::WHERE},
         {"files", TokenType::FILES},
         {"directories", TokenType::DIRECTORIES},
         {"all", TokenType::ALL},
-        {"recursive", TokenType::RECURSIVE}
-    };
-
-    std::unordered_map<std::string, TokenType> disk_operations =
-    {
+        {"recursive", TokenType::RECURSIVE},
         {"move", TokenType::MOVE},
         {"copy", TokenType::COPY},
         {"delete", TokenType::DELETE},
-        {"display", TokenType::DISPLAY}
+        {"display", TokenType::DISPLAY},
+        {"extension", TokenType::EXTENSION},
+        {"size", TokenType::SIZE},
+        {"and", TokenType::AND},
+        {"or", TokenType::OR}
     };
 
     void handle_string(std::istream& is, std::string& lexeme)
@@ -44,6 +46,10 @@ namespace lexer
                 handle_string(is, new_token.m_lexeme);
                 new_token.m_type = TokenType::STRING;
                 break;
+            case '=':
+                new_token.m_lexeme = ch;
+                new_token.m_type = TokenType::EQ;
+                break;
             case ';':
                 new_token.m_lexeme = ch;
                 new_token.m_type = TokenType::SEMICOL;
@@ -66,24 +72,24 @@ namespace lexer
                     do 
                     {
                         new_token.m_lexeme += ch;
-                    } while (isalnum(is.peek()) && (is >> ch));
+                    } while (isalpha(is.peek()) && (is >> ch));
 
-                    if (new_token.m_lexeme == "select") 
+                    if (keywords.contains(new_token.m_lexeme)) 
                     {
-                        new_token.m_type = TokenType::SELECT;
-                    }
-                    else if (select_type.contains(new_token.m_lexeme)) 
-                    {
-                        new_token.m_type = select_type[new_token.m_lexeme];
-                    }
-                    else if (disk_operations.contains(new_token.m_lexeme))
-                    {
-                        new_token.m_type = disk_operations[new_token.m_lexeme];
+                        new_token.m_type = keywords[new_token.m_lexeme];
                     }
                     else
                     {
                         throw std::runtime_error(std::format("invalid token: {}", new_token.m_lexeme));
                     }
+                }
+                else if (isnumber(ch))
+                {
+                    do 
+                    {
+                        new_token.m_lexeme += ch;
+                    } while (isnumber(is.peek()) && (is >> ch));
+                    new_token.m_type = TokenType::NUMBER;
                 }
                 else 
                 {
@@ -93,5 +99,6 @@ namespace lexer
 
             tokens.emplace_back(new_token);
         }
+        tokens.emplace_back(Token{ .m_type = TokenType::DONE });
     }
 }

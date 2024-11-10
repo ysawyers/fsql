@@ -7,6 +7,54 @@
 #include "lexer.hpp"
 #include "runtime_types.hpp"
 
+struct Rule
+{
+    virtual void emit(std::vector<Instr>& program) = 0;
+};
+
+class AndRule : public Rule
+{
+    public:
+        AndRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) {};
+
+        void emit(std::vector<Instr>& program);
+
+    private:
+        std::shared_ptr<Rule> m_lhs;
+        std::shared_ptr<Rule> m_rhs;
+};
+
+class OrRule : public Rule
+{
+    public:
+        OrRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) {};
+
+        void emit(std::vector<Instr>& program);
+    
+    private:
+        std::shared_ptr<Rule> m_lhs;
+        std::shared_ptr<Rule> m_rhs;
+};
+
+class ExtensionRule : public Rule
+{
+    public:
+        ExtensionRule(const std::string& extension) : m_extension(extension) {};
+
+        void emit(std::vector<Instr>& program);
+    
+    private:
+        const std::string& m_extension;
+};
+
+class SizeRule : public Rule
+{
+    public:
+        SizeRule();
+
+        void emit(std::vector<Instr>& program);
+};
+
 struct Element
 {
     virtual void emit(std::vector<Instr>& program) = 0;
@@ -41,15 +89,15 @@ class CompoundElement : public Element
 
     public:
         std::vector<std::shared_ptr<Element>> m_elements;
+        std::shared_ptr<Rule> m_rule;
 
     private:
         lexer::TokenType m_select_type;
 };
 
-class DiskOperation
+struct DiskOperation
 {
-    public:
-        virtual void emit(std::vector<Instr>& program) = 0;
+    virtual void emit(std::vector<Instr>& program) = 0;
 };
 
 class DisplayOp : public DiskOperation
@@ -96,6 +144,7 @@ class Query
     public:
         lexer::TokenType m_select_type;
         std::vector<std::shared_ptr<Element>> m_elements;
+        std::shared_ptr<Rule> m_rule;
         std::shared_ptr<DiskOperation> m_disk_operation;
 };
 

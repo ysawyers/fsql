@@ -90,10 +90,19 @@ void CompoundElement::emit(std::vector<Instr>& program)
         }
     }
 
+    if (m_rule)
+    {
+        m_rule->emit(program);
+    }
+    else
+    {
+        program.emplace_back(Instr{ InstrType::PUSH, nullptr });
+    }
+
     auto specifier = select_specifier(m_select_type);
     program.emplace_back(Instr{ InstrType::PUSH, reinterpret_cast<void*>(specifier) });
-    program.emplace_back(Instr{ InstrType::CREATE_CLUSTER, reinterpret_cast<void*>(n_paths) });
 
+    program.emplace_back(Instr{ InstrType::CREATE_CLUSTER, reinterpret_cast<void*>(n_paths) });
     if (n_clusters)
     {
         program.emplace_back(Instr{ InstrType::MERGE_CLUSTERS, reinterpret_cast<void*>(n_clusters) });
@@ -119,10 +128,19 @@ void Query::emit(std::vector<Instr>& program)
         }
     }
 
+    if (m_rule)
+    {
+        m_rule->emit(program);
+    }      
+    else
+    {
+        program.emplace_back(Instr{ InstrType::PUSH, nullptr });
+    }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+
     auto specifier = select_specifier(m_select_type);
     program.emplace_back(Instr{ InstrType::PUSH, reinterpret_cast<void*>(specifier) });
-    program.emplace_back(Instr{ InstrType::CREATE_CLUSTER, reinterpret_cast<void*>(n_paths) });
 
+    program.emplace_back(Instr{ InstrType::CREATE_CLUSTER, reinterpret_cast<void*>(n_paths) });
     if (n_clusters)
     {
         program.emplace_back(Instr{ InstrType::MERGE_CLUSTERS, reinterpret_cast<void*>(n_clusters) });
@@ -157,6 +175,31 @@ CopyOp::CopyOp(const std::string& path)
 void CopyOp::emit(std::vector<Instr>& program)
 {
     program.emplace_back(Instr{ InstrType::COPY, reinterpret_cast<void*>(&m_destination_path) });
+}
+
+void AndRule::emit(std::vector<Instr>& program)
+{
+    printf("and rule\n");
+    std::exit(1);
+}
+
+void OrRule::emit(std::vector<Instr>& program)
+{
+    printf("or rule\n");
+    std::exit(1);
+}
+
+void ExtensionRule::emit(std::vector<Instr>& program)
+{
+    program.emplace_back(Instr{ InstrType::PUSH, reinterpret_cast<void*>(new std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        return m_extension == path.extension();
+    })) });
+}
+
+void SizeRule::emit(std::vector<Instr>& program)
+{
+    printf("size rule\n");
+    std::exit(1);
 }
 
 void AST::prune_conflicting_select()

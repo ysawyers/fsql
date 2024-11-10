@@ -19,12 +19,22 @@ namespace lexer
         DELETE,
         DISPLAY,
 
+        WHERE,
+        AND,
+        OR,
+        EXTENSION,
+        SIZE,
+
         LPAREN,
         RPAREN,
         COMMA,
         SEMICOL,
+        EQ,
 
-        STRING
+        STRING,
+        NUMBER,
+
+        DONE
     };
 
     struct Token 

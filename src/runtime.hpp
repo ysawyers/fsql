@@ -3,9 +3,8 @@
 
 #include <array>
 #include <filesystem>
-#include <vector>
-#include <set>
 #include <functional>
+#include <unordered_set>
 
 #include "runtime_types.hpp"
 
@@ -14,20 +13,15 @@ class Cluster
     public:
         Cluster() : m_parent(nullptr) {};
 
-        virtual void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation) = 0;
-
         void execute(std::function<void(const std::filesystem::path& path)> operation);
+
+        virtual void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation);
 
     public:
         std::shared_ptr<Cluster> m_parent;
         std::vector<std::shared_ptr<Cluster>> m_children;
         std::vector<std::filesystem::path> m_paths;
-};
-
-class AllCluster : public Cluster
-{
-    public:
-        void unpack(const std::filesystem::path& path, std::function<void(const std::filesystem::path& path)> operation);
+        std::function<bool(const std::filesystem::path&)>* m_rule;
 };
 
 class RecursiveCluster : public Cluster

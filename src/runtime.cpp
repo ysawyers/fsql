@@ -1,25 +1,67 @@
 #include "runtime.hpp"
 
 #include <iostream>
-#include <format>
 
 namespace fs = std::filesystem;
 
-void Cluster::execute(std::function<void(const std::filesystem::path& path)> operation)
+void Cluster::execute(std::function<void(const fs::path& path)> operation)
 {
     for (const auto& path : m_paths)
     {
         unpack(path, operation);
     }
 
-    // TODO: we might be able to just slap each call to execute in a thread in the future!
     for (const auto& child : m_children)
     {
         child->execute(operation);
     }
 }
 
-void RecursiveCluster::unpack(const fs::path& path, std::function<void(const std::filesystem::path& path)> operation)
+void Cluster::unpack(const fs::path& path, std::function<void(const fs::path& path)> operation)
+{
+    if (m_parent)
+    {
+        if (fs::is_directory(path))
+        {
+            for (const auto& nested_path : fs::directory_iterator(path))
+            {
+                if (!m_rule || (*m_rule)(nested_path))
+                {
+                    m_parent->unpack(nested_path, operation);
+                }
+            }
+        }
+        else
+        {
+            if (!m_rule || (*m_rule)(path))
+            {
+                m_parent->unpack(path, operation);
+            }
+        }
+    }
+    else
+    {
+        if (fs::is_directory(path))
+        {
+            for (const auto& nested_path : fs::directory_iterator(path))
+            {
+                if (!m_rule || (*m_rule)(nested_path))
+                {
+                    operation(nested_path);
+                }
+            }
+        }
+        else
+        {
+            if (!m_rule || (*m_rule)(path))
+            {
+                operation(path);
+            }
+        }
+    }
+}
+
+void RecursiveCluster::unpack(const fs::path& path, std::function<void(const fs::path& path)> operation)
 {
     if (m_parent)
     {
@@ -27,7 +69,7 @@ void RecursiveCluster::unpack(const fs::path& path, std::function<void(const std
         {
             for (const auto& nested_path : fs::recursive_directory_iterator(path))
             {
-                if (fs::is_regular_file(nested_path))
+                if (fs::is_regular_file(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     m_parent->unpack(nested_path, operation);
                 }
@@ -35,7 +77,10 @@ void RecursiveCluster::unpack(const fs::path& path, std::function<void(const std
         }
         else
         {
-            m_parent->unpack(path, operation);
+            if (!m_rule || (*m_rule)(path))
+            {
+                m_parent->unpack(path, operation);
+            }
         }
     }
     else
@@ -44,7 +89,7 @@ void RecursiveCluster::unpack(const fs::path& path, std::function<void(const std
         {
             for (const auto& nested_path : fs::recursive_directory_iterator(path))
             {
-                if (fs::is_regular_file(nested_path))
+                if (fs::is_regular_file(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     operation(nested_path);
                 }
@@ -52,12 +97,15 @@ void RecursiveCluster::unpack(const fs::path& path, std::function<void(const std
         }
         else
         {
-            operation(path);
+            if (!m_rule || (*m_rule)(path))
+            {
+                operation(path);
+            }
         }
     }
 }
 
-void AllCluster::unpack(const fs::path& path, std::function<void(const std::filesystem::path& path)> operation)
+void DirectoriesCluster::unpack(const fs::path& path, std::function<void(const fs::path& path)> operation)
 {
     if (m_parent)
     {
@@ -65,39 +113,7 @@ void AllCluster::unpack(const fs::path& path, std::function<void(const std::file
         {
             for (const auto& nested_path : fs::directory_iterator(path))
             {
-                m_parent->unpack(nested_path, operation);
-            }
-        }
-        else
-        {
-            m_parent->unpack(path, operation);
-        }
-    }
-    else
-    {
-        if (fs::is_directory(path))
-        {
-            for (const auto& nested_path : fs::directory_iterator(path))
-            {
-                operation(nested_path);
-            }
-        }
-        else
-        {
-            operation(path);
-        }
-    }
-}
-
-void DirectoriesCluster::unpack(const fs::path& path, std::function<void(const std::filesystem::path& path)> operation)
-{
-    if (m_parent)
-    {
-        if (fs::is_directory(path))
-        {
-            for (const auto& nested_path : fs::directory_iterator(path))
-            {
-                if (fs::is_directory(nested_path))
+                if (fs::is_directory(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     m_parent->unpack(nested_path, operation);
                 }
@@ -110,7 +126,7 @@ void DirectoriesCluster::unpack(const fs::path& path, std::function<void(const s
         {
             for (const auto& nested_path : fs::directory_iterator(path))
             {
-                if (fs::is_directory(nested_path))
+                if (fs::is_directory(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     operation(nested_path);
                 }
@@ -119,7 +135,7 @@ void DirectoriesCluster::unpack(const fs::path& path, std::function<void(const s
     }
 }
 
-void FilesCluster::unpack(const fs::path& path, std::function<void(const std::filesystem::path& path)> operation)
+void FilesCluster::unpack(const fs::path& path, std::function<void(const fs::path& path)> operation)
 {
     if (m_parent)
     {
@@ -127,7 +143,7 @@ void FilesCluster::unpack(const fs::path& path, std::function<void(const std::fi
         {
             for (const auto& nested_path : fs::directory_iterator(path))
             {
-                if (fs::is_regular_file(nested_path))
+                if (fs::is_regular_file(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     m_parent->unpack(nested_path, operation);
                 }
@@ -135,7 +151,10 @@ void FilesCluster::unpack(const fs::path& path, std::function<void(const std::fi
         }
         else
         {
-            m_parent->unpack(path, operation);
+            if (!m_rule || (*m_rule)(path))
+            {
+                m_parent->unpack(path, operation);
+            }
         }
     }
     else
@@ -144,7 +163,7 @@ void FilesCluster::unpack(const fs::path& path, std::function<void(const std::fi
         {
             for (const auto& nested_path : fs::directory_iterator(path))
             {
-                if (fs::is_regular_file(nested_path))
+                if (fs::is_regular_file(nested_path) && (!m_rule || (*m_rule)(nested_path)))
                 {
                     operation(nested_path);
                 }
@@ -152,7 +171,10 @@ void FilesCluster::unpack(const fs::path& path, std::function<void(const std::fi
         }
         else
         {
-            operation(path);
+            if (!m_rule || (*m_rule)(path))
+            {
+                operation(path);
+            }
         }
     }
 }
@@ -182,13 +204,13 @@ void Runtime::create_cluster(std::uint64_t n_paths)
 {
     if (m_cluster_sp < m_cluster_stack.size())
     {
-        std::shared_ptr<Cluster> cluster;
+        std::shared_ptr<Cluster> cluster = nullptr;
 
         auto select_specifier = reinterpret_cast<std::uint64_t>(stack_pop());
         switch (select_specifier)
         {
         case 0b11:
-            cluster = std::make_shared<AllCluster>();
+            cluster = std::make_shared<Cluster>();
             break;
         case 0b10:
             cluster = std::make_shared<DirectoriesCluster>();
@@ -201,6 +223,8 @@ void Runtime::create_cluster(std::uint64_t n_paths)
             break;
         default: std::unreachable();
         }
+
+        cluster->m_rule = reinterpret_cast<std::function<bool(const std::filesystem::path&)>*>(stack_pop());
 
         for (; n_paths > 0; n_paths--)
         {
@@ -236,31 +260,58 @@ void Runtime::merge_clusters(std::uint64_t n_clusters)
 
 void Runtime::display_operation()
 {
+    std::unordered_set<fs::path> paths;
+
     auto cluster = m_cluster_stack[--m_cluster_sp];
-    cluster->execute([](const fs::path& path) {
-        std::cout << path << "\n";
+    cluster->execute([&](const fs::path& path) {
+        if (!paths.contains(path))
+        {
+            printf("%s\n", path.c_str());
+            paths.insert(path);
+        }
     });
 }
 
 void Runtime::delete_operation()
 {
+    std::unordered_set<fs::path> paths;
+
     auto cluster = m_cluster_stack[--m_cluster_sp];
-    printf("delete\n");
-    exit(1);
+    cluster->execute([&](const fs::path& path) {
+        if (!paths.contains(path))
+        {
+            fs::remove_all(path);
+            paths.insert(path);
+        }
+    });
 }
 
 void Runtime::move_operation(fs::path& destination_path)
 {
+    std::unordered_set<fs::path> paths;
+
     auto cluster = m_cluster_stack[--m_cluster_sp];
-    printf("move\n");
-    exit(1);
+    cluster->execute([&](const fs::path& path) {
+        if (!paths.contains(path))
+        {
+            fs::rename(path, destination_path / path.filename());
+            paths.insert(path);
+        }
+    });
 }
 
 void Runtime::copy_operation(fs::path& destination_path)
 {
+    std::unordered_set<fs::path> paths;
+    
     auto cluster = m_cluster_stack[--m_cluster_sp];
-    printf("copy\n");
-    exit(1);
+    cluster->execute([&](const fs::path& path) {
+        if (!paths.contains(path))
+        {
+            fs::copy(path, destination_path);
+            paths.insert(path);
+        }
+    });
 }
 
 void Runtime::run(std::vector<Instr>&& program)
