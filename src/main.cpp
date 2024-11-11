@@ -3,9 +3,6 @@
 #include "parser.hpp"
 #include "runtime.hpp"
 
-#include <iostream>
-#include <string>
-
 const char* program = "FSQL 0.0.0";
 
 int run(std::istream& stream) 
@@ -19,6 +16,7 @@ int run(std::istream& stream)
 
         Runtime runtime;
         runtime.run(ast->compile());
+        return EXIT_SUCCESS;
     }
     catch(const std::exception& e)
     {
@@ -31,12 +29,17 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        // TODO
+        // TODO: interactive shell?
         exit(1);
     }
     else
     {
         std::ifstream source_file(argv[1]);
+        if (source_file.fail())
+        {
+            std::cout << "failed to open: " << argv[1] << "\n";
+            return EXIT_FAILURE;
+        }
         return run(source_file);
     }
     return EXIT_SUCCESS;

@@ -18,7 +18,7 @@ fs::path format_path(const std::string& path)
     }
     else if (fs::exists(path))
     {
-        return std::filesystem::canonical(path);
+        return fs::canonical(path);
     }
     else
     {
@@ -184,21 +184,21 @@ void Rule::emit(std::vector<Instr>& program)
 
 AndRule::AndRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) 
 {
-    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+    m_predicate = std::function<bool(const fs::path&)>([&](const fs::path& path) {
         return m_lhs->m_predicate(path) && m_rhs->m_predicate(path);
     });
 }
 
 OrRule::OrRule(std::shared_ptr<Rule> lhs, std::shared_ptr<Rule> rhs) : m_lhs(lhs), m_rhs(rhs) 
 {
-    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+    m_predicate = std::function<bool(const fs::path&)>([&](const fs::path& path) {
         return m_lhs->m_predicate(path) || m_rhs->m_predicate(path);
     });
 }
 
 ExtensionRule::ExtensionRule(const std::string& extension) : m_extension(extension) 
 {
-    m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+    m_predicate = std::function<bool(const fs::path&)>([&](const fs::path& path) {
         return path.extension() == m_extension;
     });
 }
@@ -207,13 +207,13 @@ SizeRule::SizeRule(std::uint64_t threshold_size, bool within_threshold) : m_thre
 {
     if (within_threshold)
     {
-        m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        m_predicate = std::function<bool(const fs::path&)>([&](const fs::path& path) {
             return fs::file_size(path) <= m_threshold_size;
         });
     }
     else
     {
-        m_predicate = std::function<bool(const std::filesystem::path&)>([&](const std::filesystem::path& path) {
+        m_predicate = std::function<bool(const fs::path&)>([&](const fs::path& path) {
             return fs::file_size(path) >= m_threshold_size;
         });
     }
